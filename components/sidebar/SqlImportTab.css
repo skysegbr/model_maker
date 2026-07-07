@@ -1,0 +1,59 @@
+/* SqlImportTab.css — aba SQL */
+.mm-sql-import {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.mm-sql-textarea {
+  flex: 1;
+  min-height: 280px;
+  resize: none;
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  background: var(--m-surface-muted);
+  color: var(--m-text);
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 10px;
+  box-sizing: border-box;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 4;
+}
+
+.mm-sql-textarea::placeholder {
+  color: var(--m-text-muted);
+  opacity: 1;
+}
+
+.mm-sql-textarea:focus {
+  outline: none;
+  border-color: var(--m-primary);
+  background: var(--m-surface);
+}
+
+.mm-sidebar--wide .mm-sql-textarea {
+  min-height: 360px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mm-sql-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mm-sql-actions .mm-cancel-btn,
+.mm-sql-actions .mm-submit-btn {
+  flex: 1 1 100px;
+}
+
+.mm-sql-actions .mm-submit-btn {
+  margin-left: auto;
+}

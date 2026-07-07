@@ -6,6 +6,7 @@ import { CANVAS_SIZE, CARDINALITIES } from '../../data.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
 import { TableNode, TABLE_W, tableNodeHeight, tableAnchors } from './TableNode.js';
 import { RelationLines, bezierPath } from './RelationLines.js';
+import { Minimap } from './Minimap.js';
 import { useEntityDialogs } from '../entity-dialogs/useEntityDialogs.js';
 
 const WORLD_W = CANVAS_SIZE.w;
@@ -37,7 +38,7 @@ function clampView(vb) {
   return { x: clampAxis(vb.x, w, WORLD_W), y: clampAxis(vb.y, h, WORLD_H), w, h };
 }
 
-export default function DiagramCanvas({ selectedTable, onSelectTable, focusRequest }) {
+export default function DiagramCanvas({ selectedTable, onSelectTable, focusRequest, fitRequest }) {
   const { tables, relations, moveTable, commitMove, addRelation, updateRelation, removeRelation, canvasView } = useModelCtx();
   const svgRef    = useRef(null);
   const tablesRef  = useRef(tables);
@@ -46,6 +47,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
   const viewBoxRef = useRef(viewBox);
   viewBoxRef.current = viewBox;
   const pointersRef = useRef(new Map()); // pointers ativos (pinça em touch)
+  const zoomFitRef  = useRef(null);      // zoomFit mais recente, para efeitos
   const { menu, openMenu, closeMenu } = useContextMenu();
   const [contextTarget, setContextTarget] = useState(null);
   const [relMenu, setRelMenu] = useState(null); // { relId, x, y } | null
@@ -380,6 +382,19 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
     setViewBox((vb) => clampView({ x: cx - vb.w / 2, y: cy - vb.h / 2, w: vb.w, h: vb.h }));
   }, [focusRequest]);
 
+  // Enquadra tudo quando pedido pelo Shell (após "Organizar") — o rAF
+  // garante que as novas posições já renderizaram
+  useEffect(() => {
+    if (!fitRequest) return;
+    const id = requestAnimationFrame(() => zoomFitRef.current?.());
+    return () => cancelAnimationFrame(id);
+  }, [fitRequest]);
+
+  // Navegação pelo minimap: centraliza a vista no ponto clicado
+  const navigateTo = useCallback((cx, cy) => {
+    setViewBox((vb) => clampView({ x: cx - vb.w / 2, y: cy - vb.h / 2, w: vb.w, h: vb.h }));
+  }, []);
+
   const zoomBy = (factor) => setViewBox((vb) => {
     const w = Math.min(MAX_VIEW_W, Math.max(MIN_VIEW_W, vb.w * factor));
     const scale = w / vb.w;
@@ -413,6 +428,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       w, h,
     }));
   }
+  zoomFitRef.current = zoomFit;
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -496,5 +512,6 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       h('button', { className: 'mm-zoom-btn', title: 'Reduzir', onClick: () => zoomBy(1.25) }, '−'),
       h('button', { className: 'mm-zoom-btn', title: 'Enquadrar tabelas', onClick: zoomFit }, '⛶'),
     ),
+    tables.length > 0 && h(Minimap, { tables, viewBox, onNavigate: navigateTo }),
   );
 }

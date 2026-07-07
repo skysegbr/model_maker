@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, useHistory } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { CANVAS_SIZE } from '../../data.js';
-import { TABLE_W } from '../canvas/TableNode.js';
+import { TABLE_W, tableNodeHeight } from '../canvas/TableNode.js';
 
 export const ModelCtx = createContext(null);
 
@@ -240,6 +240,46 @@ export function useModelState() {
     setModel({ tables: nextTables, relations: nextRelations }),
   [setModel]);
 
+  // autoLayout: organiza por nível de dependência — pais (lado "1") à
+  // esquerda, filhos (donos de FK) à direita, empilhados por coluna
+  const autoLayout = useCallback(() =>
+    setModel((p) => {
+      if (!p.tables.length) return p;
+
+      const level = {};
+      p.tables.forEach((t) => { level[t.id] = 0; });
+      // relaxamento limitado ao nº de tabelas — termina mesmo com ciclos
+      for (let i = 0; i < p.tables.length; i++) {
+        let changed = false;
+        p.relations.forEach((r) => {
+          if (level[r.fromTable] === undefined || level[r.toTable] === undefined) return;
+          if (level[r.toTable] < level[r.fromTable] + 1) {
+            level[r.toTable] = level[r.fromTable] + 1;
+            changed = true;
+          }
+        });
+        if (!changed) break;
+      }
+
+      const GAP_X = 140, GAP_Y = 48, START_X = 80, START_Y = 70;
+      const nextY = {};
+      const pos = {};
+      [...p.tables]
+        .sort((a, b) => level[a.id] - level[b.id] || a.name.localeCompare(b.name))
+        .forEach((t) => {
+          const lv = level[t.id];
+          const y = nextY[lv] ?? START_Y;
+          nextY[lv] = y + tableNodeHeight(t.columns) + GAP_Y;
+          pos[t.id] = {
+            x: Math.min(CANVAS_SIZE.w - TABLE_W, START_X + lv * (TABLE_W + GAP_X)),
+            y: Math.min(CANVAS_SIZE.h - 120, y),
+          };
+        });
+
+      return { ...p, tables: p.tables.map((t) => ({ ...t, ...pos[t.id] })) };
+    }),
+  [setModel]);
+
   return useMemo(() => ({
     tables,
     relations,
@@ -258,6 +298,7 @@ export function useModelState() {
     removeRelation,
     importModel,
     replaceModel,
+    autoLayout,
     undo,
     redo,
     canUndo,
@@ -267,7 +308,7 @@ export function useModelState() {
     addTable, updateTable, removeTable, moveTable, commitMove,
     addColumn, updateColumn, moveColumn, removeColumn,
     addRelation, updateRelation, removeRelation,
-    importModel, replaceModel,
+    importModel, replaceModel, autoLayout,
     undo, redo, canUndo, canRedo,
   ]);
 }

@@ -1,0 +1,32 @@
+/* Minimap.css — miniatura de navegação do canvas */
+.mm-minimap {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 180px;
+  height: 132px;
+  background: color-mix(in srgb, var(--m-surface) 85%, transparent);
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+  cursor: pointer;
+  z-index: 5;
+  touch-action: none;
+}
+
+.mm-minimap-table {
+  fill: var(--m-primary);
+  opacity: .55;
+}
+
+.mm-minimap-view {
+  fill: color-mix(in srgb, var(--m-secondary) 12%, transparent);
+  stroke: var(--m-secondary);
+  stroke-width: 28;
+}
+
+@media (max-width: 640px) {
+  .mm-minimap {
+    display: none;
+  }
+}

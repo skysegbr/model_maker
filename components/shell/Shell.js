@@ -11,7 +11,8 @@ export default function Shell() {
   const [selectedTable, setSelectedTable] = useState(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const [focusRequest, setFocusRequest] = useState(null); // { id, n } — centralizar no canvas
-  const { tables, relations, replaceModel, undo, redo, canUndo, canRedo } = useModelCtx();
+  const [fitRequest, setFitRequest] = useState(null);     // { n } — enquadrar tudo no canvas
+  const { tables, relations, replaceModel, autoLayout, undo, redo, canUndo, canRedo } = useModelCtx();
   const { requestDeleteTable, dialogs } = useEntityDialogs({ selectedTable, onSelectTable: setSelectedTable });
   const isEmpty = tables.length === 0 && relations.length === 0;
 
@@ -49,6 +50,11 @@ export default function Shell() {
     setFocusRequest({ id, n: Date.now() }); // n força o efeito mesmo repetindo o id
   }
 
+  function organize() {
+    autoLayout();
+    setFitRequest({ n: Date.now() }); // enquadra o resultado
+  }
+
   function startNewModel() {
     replaceModel({ tables: [], relations: [] });
     setSelectedTable(null);
@@ -66,6 +72,12 @@ export default function Shell() {
           disabled: isEmpty,
           title: 'Descartar o modelo atual e começar do zero',
         }, '🗎 Novo'),
+        h('button', {
+          className: 'mm-topbar-btn mm-topbar-btn--label',
+          onClick: organize,
+          disabled: tables.length === 0,
+          title: 'Organizar tabelas por dependência (Ctrl+Z desfaz)',
+        }, '⚏ Organizar'),
         h('button', { className: 'mm-topbar-btn', onClick: undo, disabled: !canUndo, title: 'Desfazer (Ctrl+Z)' }, '↩'),
         h('button', { className: 'mm-topbar-btn', onClick: redo, disabled: !canRedo, title: 'Refazer (Ctrl+Y)' }, '↪'),
       ),
@@ -76,7 +88,7 @@ export default function Shell() {
     ),
     h('div', { className: 'mm-body' },
       h(Sidebar, { selectedTable, onSelectTable: setSelectedTable, onFocusTable: focusTable }),
-      h(DiagramCanvas, { selectedTable, onSelectTable: setSelectedTable, focusRequest }),
+      h(DiagramCanvas, { selectedTable, onSelectTable: setSelectedTable, focusRequest, fitRequest }),
     ),
     dialogs,
     h(Dialog, {

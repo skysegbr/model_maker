@@ -5,6 +5,7 @@ import { useModelCtx, validateTableName, validateColumnName } from '../model-con
 import { COLUMN_TYPES, CARDINALITIES, BLANK_COLUMN } from '../../data.js';
 import { ExportTab } from './ExportTab.js';
 import { JsonImportTab } from './JsonImportTab.js';
+import { SqlImportTab } from './SqlImportTab.js';
 import { useEntityDialogs } from '../entity-dialogs/useEntityDialogs.js';
 
 export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) {
@@ -92,12 +93,12 @@ export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) 
 
     // ── Tabs ─────────────────────────────────────────────────────────────
     h('div', { className: 'mm-tabs' },
-      ['tables', 'relations', 'json', 'export'].map((t) =>
+      ['tables', 'relations', 'json', 'sql', 'export'].map((t) =>
         h('button', {
           key: t,
           className: `mm-tab${tab === t ? ' mm-tab--on' : ''}`,
           onClick: () => setTab(t),
-        }, { tables: 'Tabelas', relations: 'Relações', json: 'JSON', export: 'Exportar' }[t])
+        }, { tables: 'Tabelas', relations: 'Relações', json: 'JSON', sql: 'SQL', export: 'Exportar' }[t])
       ),
       h('button', {
         className: `mm-sidebar-toggle${sidebarWide ? ' mm-sidebar-toggle--on' : ''}`,
@@ -392,6 +393,14 @@ export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) 
     // ABA: JSON
     // ════════════════════════════════════════════════════════════════════
     tab === 'json' && h(JsonImportTab, {
+      onImport: importModel,
+      onSelectTable: (id) => { onSelectTable(id); if (id) onFocusTable?.(id); },
+    }),
+
+    // ════════════════════════════════════════════════════════════════════
+    // ABA: SQL
+    // ════════════════════════════════════════════════════════════════════
+    tab === 'sql' && h(SqlImportTab, {
       onImport: importModel,
       onSelectTable: (id) => { onSelectTable(id); if (id) onFocusTable?.(id); },
     }),
