@@ -86,6 +86,14 @@
   cursor: not-allowed;
 }
 
+.mm-topbar-btn--label {
+  width: auto;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 4px;
+}
+
 @media (max-width: 720px) {
   .mm-tagline {
     display: none;

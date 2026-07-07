@@ -36,7 +36,7 @@ export function tableAnchors(table) {
   };
 }
 
-export const TableNode = memo(function TableNode({ table, selected, onSelect, onDragStart, onTableContextMenu, onColumnContextMenu }) {
+export const TableNode = memo(function TableNode({ table, selected, onSelect, onDragStart, onConnectStart, onTableDblClick, onColumnDblClick, onTableContextMenu, onColumnContextMenu }) {
   const totalH = tableNodeHeight(table.columns);
 
   const grabProps = (id, e) => {
@@ -46,11 +46,24 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
     onDragStart(id, e);
   };
 
+  const portProps = (side) => ({
+    className: 'mm-node-port',
+    cx: side === 'left' ? 0 : TABLE_W,
+    cy: totalH / 2,
+    r: 6,
+    onPointerDown: (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onConnectStart?.(table.id, side, e);
+    },
+  });
+
   const clipId = `mm-clip-${table.id}`;
 
   return h('g', {
     dataset: { tableId: table.id },
-    className: 'mm-node',
+    className: `mm-node${selected ? ' mm-node--sel' : ''}`,
     transform: `translate(${table.x},${table.y})`,
     onClick: (e) => { e.stopPropagation(); onSelect(table.id); },
   },
@@ -83,7 +96,8 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
       x: 0, y: 0,
       width: TABLE_W, height: HEADER_H,
       rx: 8,
-      onMouseDown: (e) => grabProps(table.id, e),
+      onPointerDown: (e) => grabProps(table.id, e),
+      onDblClick: (e) => { e.stopPropagation(); onTableDblClick?.(table.id); },
       onContextMenu: (e) => onTableContextMenu?.(table.id, e),
       style: { cursor: 'grab' },
     }),
@@ -92,7 +106,8 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
       className: 'mm-node-header',
       x: 0, y: HEADER_H - 10,
       width: TABLE_W, height: 10,
-      onMouseDown: (e) => grabProps(table.id, e),
+      onPointerDown: (e) => grabProps(table.id, e),
+      onDblClick: (e) => { e.stopPropagation(); onTableDblClick?.(table.id); },
       onContextMenu: (e) => onTableContextMenu?.(table.id, e),
       style: { cursor: 'grab' },
     }),
@@ -104,7 +119,8 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
       y: HEADER_H - 11,
       'text-anchor': 'middle',
       'clip-path': `url(#${clipId})`,
-      onMouseDown: (e) => grabProps(table.id, e),
+      onPointerDown: (e) => grabProps(table.id, e),
+      onDblClick: (e) => { e.stopPropagation(); onTableDblClick?.(table.id); },
       onContextMenu: (e) => onTableContextMenu?.(table.id, e),
       style: { cursor: 'grab', userSelect: 'none' },
     },
@@ -125,6 +141,7 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
         className: `mm-col-hit${i % 2 === 1 ? ' mm-col-alt' : ''}`,
         x: 1, y: ry,
         width: TABLE_W - 2, height: ROW_H,
+        onDblClick: (e) => { e.stopPropagation(); onColumnDblClick?.(table.id, col.id); },
         onContextMenu: (e) => onColumnContextMenu?.(table.id, col.id, e),
       }));
 
@@ -200,5 +217,13 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
       rx: 8,
       style: { pointerEvents: 'none' },
     }),
+
+    // Portas de conexão — arrastar de uma porta até outra tabela cria relação
+    h('circle', portProps('left'),
+      h('title', null, 'Arraste até outra tabela para criar uma relação'),
+    ),
+    h('circle', portProps('right'),
+      h('title', null, 'Arraste até outra tabela para criar uma relação'),
+    ),
   );
 });

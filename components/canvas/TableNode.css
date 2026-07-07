@@ -86,6 +86,25 @@
   fill: #ffffff;
 }
 
+/* Portas de conexão (criar relação por arraste) */
+.mm-node-port {
+  fill: var(--m-surface);
+  stroke: var(--m-primary);
+  stroke-width: 1.5;
+  opacity: 0;
+  cursor: crosshair;
+  transition: opacity .12s;
+}
+
+.mm-node:hover .mm-node-port,
+.mm-node--sel .mm-node-port {
+  opacity: 1;
+}
+
+.mm-node-port:hover {
+  fill: var(--m-primary);
+}
+
 /* Área clicável das colunas para menu de contexto */
 .mm-col-hit {
   fill: transparent;

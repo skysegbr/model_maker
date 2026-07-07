@@ -1,13 +1,13 @@
 // Sidebar.js — painel lateral: Tabelas | Relações | JSON | Exportar
 
 import { h, useState } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
-import { useModelCtx } from '../model-context/ModelContext.js';
+import { useModelCtx, validateTableName, validateColumnName } from '../model-context/ModelContext.js';
 import { COLUMN_TYPES, CARDINALITIES, BLANK_COLUMN } from '../../data.js';
 import { ExportTab } from './ExportTab.js';
 import { JsonImportTab } from './JsonImportTab.js';
 import { useEntityDialogs } from '../entity-dialogs/useEntityDialogs.js';
 
-export default function Sidebar({ selectedTable, onSelectTable }) {
+export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) {
   const {
     tables, relations,
     addTable, addColumn, moveColumn,
@@ -19,8 +19,10 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
   const [sidebarWide, setSidebarWide] = useState(false);
   const [addingTable, setAddingTable] = useState(false);
   const [newTName, setNewTName]     = useState('');
+  const [newTError, setNewTError]   = useState('');
   const [addColFor, setAddColFor]   = useState(null);
   const [newCol, setNewCol]         = useState({ ...BLANK_COLUMN });
+  const [newColError, setNewColError] = useState('');
   const [addingRel, setAddingRel]   = useState(false);
   const [newRel, setNewRel]         = useState({
     fromTable: '', fromColumn: '', toTable: '', toColumn: '', cardinality: '1:N',
@@ -34,18 +36,28 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
 
   function submitTable(e) {
     e.preventDefault();
-    if (!newTName.trim()) return;
-    const id = addTable(newTName.trim());
+    const name = newTName.trim();
+    if (!name) return;
+    const error = validateTableName(tables, name);
+    if (error) { setNewTError(error); return; }
+    const id = addTable(name);
     setNewTName('');
+    setNewTError('');
     setAddingTable(false);
     onSelectTable(id);
+    onFocusTable?.(id);
   }
 
   function submitColumn(e) {
     e.preventDefault();
-    if (!newCol.name.trim() || !addColFor) return;
-    addColumn(addColFor, { ...newCol, name: newCol.name.trim() });
+    const name = newCol.name.trim();
+    if (!name || !addColFor) return;
+    const table = tables.find((t) => t.id === addColFor);
+    const error = table ? validateColumnName(table, name) : '';
+    if (error) { setNewColError(error); return; }
+    addColumn(addColFor, { ...newCol, name });
     setNewCol({ ...BLANK_COLUMN });
+    setNewColError('');
     setAddColFor(null);
   }
 
@@ -58,12 +70,16 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
   }
 
   function toggleTable(id) {
-    onSelectTable(id === selectedTable ? null : id);
+    const next = id === selectedTable ? null : id;
+    onSelectTable(next);
+    if (next) onFocusTable?.(next); // centraliza a tabela no canvas
   }
 
   function openSchema(model) {
     replaceModel(model);
-    onSelectTable(model.tables[0]?.id || null);
+    const first = model.tables[0]?.id || null;
+    onSelectTable(first);
+    if (first) onFocusTable?.(first);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -94,7 +110,7 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
 
       h('button', {
         className: 'mm-add-btn',
-        onClick: () => { setAddingTable((v) => !v); setNewTName(''); },
+        onClick: () => { setAddingTable((v) => !v); setNewTName(''); setNewTError(''); },
       }, addingTable ? '✕ Cancelar' : '+ Nova Tabela'),
 
       // Form: nova tabela
@@ -103,9 +119,10 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
           className: 'mm-input',
           placeholder: 'nome_da_tabela...',
           value: newTName,
-          onInput: (e) => setNewTName(e.target.value),
+          onInput: (e) => { setNewTName(e.target.value); setNewTError(''); },
           autoFocus: true,
         }),
+        newTError && h('p', { className: 'mm-msg-error' }, newTError),
         h('button', { className: 'mm-submit-btn', type: 'submit' }, 'Criar'),
       ),
 
@@ -185,9 +202,10 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
                       className: 'mm-input mm-input--sm',
                       placeholder: 'nome_coluna...',
                       value: newCol.name,
-                      onInput: (e) => setNewCol((c) => ({ ...c, name: e.target.value })),
+                      onInput: (e) => { setNewCol((c) => ({ ...c, name: e.target.value })); setNewColError(''); },
                       autoFocus: true,
                     }),
+                    newColError && h('p', { className: 'mm-msg-error' }, newColError),
                     h('select', {
                       className: 'mm-select',
                       value: newCol.type,
@@ -219,13 +237,13 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
                       h('button', { className: 'mm-submit-btn', type: 'submit' }, 'Adicionar'),
                       h('button', {
                         className: 'mm-cancel-btn', type: 'button',
-                        onClick: () => { setAddColFor(null); setNewCol({ ...BLANK_COLUMN }); },
+                        onClick: () => { setAddColFor(null); setNewCol({ ...BLANK_COLUMN }); setNewColError(''); },
                       }, 'Cancelar'),
                     ),
                   )
                   : h('button', {
                     className: 'mm-add-col-btn',
-                    onClick: () => { setAddColFor(tbl.id); setNewCol({ ...BLANK_COLUMN }); },
+                    onClick: () => { setAddColFor(tbl.id); setNewCol({ ...BLANK_COLUMN }); setNewColError(''); },
                   }, '+ Coluna'),
               ),
             );
@@ -360,7 +378,10 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
     // ════════════════════════════════════════════════════════════════════
     // ABA: JSON
     // ════════════════════════════════════════════════════════════════════
-    tab === 'json' && h(JsonImportTab, { onImport: importModel, onSelectTable }),
+    tab === 'json' && h(JsonImportTab, {
+      onImport: importModel,
+      onSelectTable: (id) => { onSelectTable(id); if (id) onFocusTable?.(id); },
+    }),
 
     // ════════════════════════════════════════════════════════════════════
     // ABA: Exportar

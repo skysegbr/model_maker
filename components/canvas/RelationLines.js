@@ -4,7 +4,7 @@ import { h, useMemo } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/
 import { TABLE_W, tableAnchors } from './TableNode.js';
 
 /** Retorna o path de uma curva bezier cúbica entre dois pontos */
-function bezierPath(from, to) {
+export function bezierPath(from, to) {
   const dx = Math.abs(to.x - from.x);
   const cp = Math.max(dx * 0.55, 60);
   return `M ${from.x},${from.y} C ${from.x + cp * Math.sign(to.x - from.x)},${from.y} ${to.x - cp * Math.sign(to.x - from.x)},${to.y} ${to.x},${to.y}`;

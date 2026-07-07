@@ -2,11 +2,11 @@
 // tabelas e colunas, compartilhado entre Sidebar e DiagramCanvas
 
 import { h, Fragment, useState } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
-import { useModelCtx } from '../model-context/ModelContext.js';
+import { useModelCtx, validateTableName, validateColumnName } from '../model-context/ModelContext.js';
 import { EntityDeleteDialog, EntityEditDialog } from './EntityDialogs.js';
 
 export function useEntityDialogs({ selectedTable, onSelectTable }) {
-  const { updateTable, removeTable, updateColumn, removeColumn } = useModelCtx();
+  const { tables, updateTable, removeTable, updateColumn, removeColumn } = useModelCtx();
   const [editDraft, setEditDraft] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -46,6 +46,15 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
     const cleanName = editDraft.name.trim();
     if (!cleanName) {
       setEditDraft((draft) => ({ ...draft, error: 'Informe um nome.' }));
+      return;
+    }
+
+    const table = tables.find((t) => t.id === editDraft.tableId);
+    const error = editDraft.kind === 'table'
+      ? validateTableName(tables, cleanName, editDraft.tableId)
+      : table ? validateColumnName(table, cleanName, editDraft.columnId) : '';
+    if (error) {
+      setEditDraft((draft) => ({ ...draft, error }));
       return;
     }
 

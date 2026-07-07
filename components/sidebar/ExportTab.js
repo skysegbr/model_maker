@@ -1,6 +1,7 @@
 // ExportTab.js — aba Exportar: gera Mermaid / SQL DDL / esquema JSON
 
 import { h, useRef, useState, useMemo } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { TABLE_W, tableNodeHeight } from '../canvas/TableNode.js';
 
 // ─── Geração de código ────────────────────────────────────────────────────────
 
@@ -45,19 +46,36 @@ function generateSQL(tables, relations) {
     return `CREATE TABLE ${t.name} (\n${lines.join(',\n')}\n);`;
   });
 
+  // FK vive no lado "N" (toTable) referenciando o lado "1" (fromTable)
   const fks = relations
-    .filter((r) => r.fromColumn && r.toColumn)
+    .filter((r) => r.fromColumn && r.toColumn && r.cardinality !== 'N:M')
     .map((r) => {
       const ft = tableMap[r.fromTable];
       const tt = tableMap[r.toTable];
       const fc = colMap[r.fromColumn];
       const tc = colMap[r.toColumn];
       if (!ft || !tt || !fc || !tc) return null;
-      return `ALTER TABLE ${ft.name}\n    ADD CONSTRAINT fk_${ft.name}_${fc.name}\n    FOREIGN KEY (${fc.name}) REFERENCES ${tt.name}(${tc.name});`;
+      return `ALTER TABLE ${tt.name}\n    ADD CONSTRAINT fk_${tt.name}_${tc.name}\n    FOREIGN KEY (${tc.name}) REFERENCES ${ft.name}(${fc.name});`;
     })
     .filter(Boolean);
 
-  return [...ddls, ...fks].join('\n\n');
+  // N:M vira tabela de junção com FK para a PK de cada lado
+  const junctions = relations
+    .filter((r) => r.cardinality === 'N:M')
+    .map((r) => {
+      const ft = tableMap[r.fromTable];
+      const tt = tableMap[r.toTable];
+      const fpk = ft?.columns.find((c) => c.pk);
+      const tpk = tt?.columns.find((c) => c.pk);
+      if (!ft || !tt || !fpk || !tpk) return null;
+      const name = `${ft.name}_${tt.name}`;
+      const a = `${ft.name}_${fpk.name}`;
+      const b = `${tt.name}_${tpk.name}`;
+      return `CREATE TABLE ${name} (\n    ${a} ${fpk.type} NOT NULL,\n    ${b} ${tpk.type} NOT NULL,\n    PRIMARY KEY (${a}, ${b}),\n    FOREIGN KEY (${a}) REFERENCES ${ft.name}(${fpk.name}),\n    FOREIGN KEY (${b}) REFERENCES ${tt.name}(${tpk.name})\n);`;
+    })
+    .filter(Boolean);
+
+  return [...ddls, ...junctions, ...fks].join('\n\n');
 }
 
 function generateSchema(tables, relations) {
@@ -127,8 +145,44 @@ export function ExportTab({ tables, relations, onOpenSchema }) {
 
   function downloadSVG() {
     const svgEl = document.querySelector('.mm-canvas-svg');
-    if (!svgEl) return;
-    const svgStr = new XMLSerializer().serializeToString(svgEl);
+    if (!svgEl || !tables.length) return;
+    const clone = svgEl.cloneNode(true);
+
+    // O arquivo baixado não carrega o CSS da aplicação — espelha os
+    // estilos computados de cada elemento como style inline
+    const props = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-dasharray',
+                   'font-family', 'font-size', 'font-weight', 'opacity'];
+    const srcEls = [svgEl, ...svgEl.querySelectorAll('*')];
+    const dstEls = [clone, ...clone.querySelectorAll('*')];
+    srcEls.forEach((src, i) => {
+      const cs = getComputedStyle(src);
+      dstEls[i].setAttribute('style', props.map((p) => `${p}:${cs.getPropertyValue(p)}`).join(';'));
+    });
+
+    // Enquadra todo o conteúdo, independente do zoom/pan atual
+    const pad  = 60;
+    const minX = Math.min(...tables.map((t) => t.x)) - pad;
+    const minY = Math.min(...tables.map((t) => t.y)) - pad;
+    const maxX = Math.max(...tables.map((t) => t.x + TABLE_W)) + pad;
+    const maxY = Math.max(...tables.map((t) => t.y + tableNodeHeight(t.columns))) + pad;
+    const w = Math.round(maxX - minX);
+    const hgt = Math.round(maxY - minY);
+    clone.setAttribute('viewBox', `${minX} ${minY} ${w} ${hgt}`);
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', hgt);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+    // Troca folha/grade por um fundo sólido do tamanho do enquadramento
+    clone.querySelectorAll('.mm-canvas-bg').forEach((el) => el.remove());
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('x', minX);
+    bg.setAttribute('y', minY);
+    bg.setAttribute('width', w);
+    bg.setAttribute('height', hgt);
+    bg.setAttribute('fill', getComputedStyle(document.documentElement).getPropertyValue('--m-bg').trim() || '#ffffff');
+    clone.insertBefore(bg, clone.firstChild);
+
+    const svgStr = new XMLSerializer().serializeToString(clone);
     const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
     const url    = URL.createObjectURL(blob);
     const a      = Object.assign(document.createElement('a'), { href: url, download: 'diagram.svg' });

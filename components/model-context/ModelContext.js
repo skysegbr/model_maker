@@ -1,6 +1,6 @@
 // ModelContext.js — contexto global + hook de estado do modelo ER
 
-import { createContext, useContext, useState, useCallback, useMemo, useRef, useHistory } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, useHistory } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { CANVAS_SIZE } from '../../data.js';
 import { TABLE_W } from '../canvas/TableNode.js';
 
@@ -8,15 +8,59 @@ export const ModelCtx = createContext(null);
 
 export const useModelCtx = () => useContext(ModelCtx);
 
+const STORAGE_KEY = 'mm-model';
+
+function loadSavedModel() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!Array.isArray(parsed?.tables) || !Array.isArray(parsed?.relations)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+// Avaliado uma vez no carregamento do módulo — não a cada render
+const INITIAL_MODEL = loadSavedModel() || { tables: [], relations: [] };
+
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+// ── Validação de nomes (identificadores SQL) ──────────────────────────────
+
+export function validateEntityName(name) {
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)
+    ? ''
+    : 'Use apenas letras, números e _ (não pode começar com número).';
+}
+
+export function validateTableName(tables, name, excludeId = null) {
+  const err = validateEntityName(name);
+  if (err) return err;
+  const dup = tables.some((t) => t.id !== excludeId && t.name.toLowerCase() === name.toLowerCase());
+  return dup ? 'Já existe uma tabela com esse nome.' : '';
+}
+
+export function validateColumnName(table, name, excludeId = null) {
+  const err = validateEntityName(name);
+  if (err) return err;
+  const dup = table.columns.some((c) => c.id !== excludeId && c.name.toLowerCase() === name.toLowerCase());
+  return dup ? 'Já existe uma coluna com esse nome nesta tabela.' : '';
+}
+
 export function useModelState() {
   const { state: model, set: setModel, undo, redo, canUndo, canRedo } = useHistory(
-    { tables: [], relations: [] },
+    INITIAL_MODEL,
     { limit: 100 },
   );
+
+  // Auto-save: qualquer mudança no modelo persiste no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(model));
+    } catch { /* armazenamento cheio/indisponível — segue sem persistir */ }
+  }, [model]);
 
   // dragPos: posição efêmera durante drag — NÃO entra no histórico
   const [dragPos, setDragPos] = useState(null); // { id, x, y } | null
@@ -124,16 +168,52 @@ export function useModelState() {
     })),
   [setModel]);
 
+  // addRelation: completa colunas ausentes — origem assume a PK do lado "1";
+  // destino (lado "N") ganha uma coluna FK "tabela_coluna" criada na hora.
+  // N:M fica sem auto-FK (o correto é tabela de junção, gerada no SQL).
   const addRelation = useCallback((rel) =>
     setModel((p) => {
+      const next = { ...rel };
+      const fromT = p.tables.find((t) => t.id === next.fromTable);
+      const toT   = p.tables.find((t) => t.id === next.toTable);
+      if (!fromT || !toT) return p;
+
+      let tables = p.tables;
+
+      if (!next.fromColumn) {
+        const pk = fromT.columns.find((c) => c.pk);
+        if (pk) next.fromColumn = pk.id;
+      }
+
+      if (!next.toColumn && next.fromColumn && next.cardinality !== 'N:M') {
+        const fromCol = fromT.columns.find((c) => c.id === next.fromColumn);
+        if (fromCol) {
+          const fkName = `${fromT.name}_${fromCol.name}`;
+          let fkCol = toT.columns.find((c) => c.name === fkName);
+          if (!fkCol) {
+            fkCol = { id: genId(), name: fkName, type: fromCol.type, pk: false, fk: true, nullable: false };
+            tables = tables.map((t) =>
+              t.id === toT.id ? { ...t, columns: [...t.columns, fkCol] } : t
+            );
+          } else if (!fkCol.fk) {
+            tables = tables.map((t) =>
+              t.id === toT.id
+                ? { ...t, columns: t.columns.map((c) => (c.id === fkCol.id ? { ...c, fk: true } : c)) }
+                : t
+            );
+          }
+          next.toColumn = fkCol.id;
+        }
+      }
+
       const exists = p.relations.some((r) =>
-        r.fromTable === rel.fromTable &&
-        r.toTable === rel.toTable &&
-        r.fromColumn === rel.fromColumn &&
-        r.toColumn === rel.toColumn &&
-        r.cardinality === rel.cardinality
+        r.fromTable === next.fromTable &&
+        r.toTable === next.toTable &&
+        r.fromColumn === next.fromColumn &&
+        r.toColumn === next.toColumn &&
+        r.cardinality === next.cardinality
       );
-      return exists ? p : { ...p, relations: [...p.relations, { id: genId(), ...rel }] };
+      return exists ? p : { tables, relations: [...p.relations, { id: genId(), ...next }] };
     }),
   [setModel]);
 

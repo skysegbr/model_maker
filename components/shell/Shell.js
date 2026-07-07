@@ -1,31 +1,71 @@
 // Shell.js — layout principal: topbar + sidebar + canvas
 
-import { h, useState, useEffect } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
-import { PaletteSwitcher, ThemeToggle } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
+import { h, useState, useEffect, useRef } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { Button, Dialog, PaletteSwitcher, ThemeToggle } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
 import Sidebar from '../sidebar/Sidebar.js';
 import DiagramCanvas from '../canvas/DiagramCanvas.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
+import { useEntityDialogs } from '../entity-dialogs/useEntityDialogs.js';
 
 export default function Shell() {
   const [selectedTable, setSelectedTable] = useState(null);
-  const { undo, redo, canUndo, canRedo } = useModelCtx();
+  const [confirmNew, setConfirmNew] = useState(false);
+  const [focusRequest, setFocusRequest] = useState(null); // { id, n } — centralizar no canvas
+  const { tables, relations, replaceModel, undo, redo, canUndo, canRedo } = useModelCtx();
+  const { requestDeleteTable, dialogs } = useEntityDialogs({ selectedTable, onSelectTable: setSelectedTable });
+  const isEmpty = tables.length === 0 && relations.length === 0;
+
+  // Refs para o handler de teclado ler o estado mais recente sem re-assinar
+  const keyStateRef = useRef(null);
+  keyStateRef.current = { selectedTable, tables, requestDeleteTable };
 
   useEffect(() => {
     function handleKey(e) {
       const ctrl = e.ctrlKey || e.metaKey;
-      if (!ctrl) return;
-      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+      if (ctrl) {
+        if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+        if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+        return;
+      }
+
+      // Delete/Escape não valem enquanto se digita ou com foco em diálogo
+      const active = document.activeElement;
+      const tag = active?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (active?.closest?.('.m-dialog, [role="dialog"]')) return;
+
+      const { selectedTable: sel, tables: tbls, requestDeleteTable: reqDel } = keyStateRef.current;
+      if (e.key === 'Escape') { setSelectedTable(null); return; }
+      if (e.key === 'Delete' && sel) {
+        const table = tbls.find((t) => t.id === sel);
+        if (table) { e.preventDefault(); reqDel(table); }
+      }
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [undo, redo]);
+
+  function focusTable(id) {
+    setFocusRequest({ id, n: Date.now() }); // n força o efeito mesmo repetindo o id
+  }
+
+  function startNewModel() {
+    replaceModel({ tables: [], relations: [] });
+    setSelectedTable(null);
+    setConfirmNew(false);
+  }
 
   return h('div', { className: 'mm-shell' },
     h('header', { className: 'mm-topbar' },
       h('span', { className: 'mm-logo' }, '⬡ Model Maker'),
       h('span', { className: 'mm-tagline' }, 'Diagrama ER visual'),
       h('div', { className: 'mm-topbar-actions' },
+        h('button', {
+          className: 'mm-topbar-btn mm-topbar-btn--label',
+          onClick: () => setConfirmNew(true),
+          disabled: isEmpty,
+          title: 'Descartar o modelo atual e começar do zero',
+        }, '🗎 Novo'),
         h('button', { className: 'mm-topbar-btn', onClick: undo, disabled: !canUndo, title: 'Desfazer (Ctrl+Z)' }, '↩'),
         h('button', { className: 'mm-topbar-btn', onClick: redo, disabled: !canRedo, title: 'Refazer (Ctrl+Y)' }, '↪'),
       ),
@@ -35,8 +75,25 @@ export default function Shell() {
       ),
     ),
     h('div', { className: 'mm-body' },
-      h(Sidebar, { selectedTable, onSelectTable: setSelectedTable }),
-      h(DiagramCanvas, { selectedTable, onSelectTable: setSelectedTable }),
+      h(Sidebar, { selectedTable, onSelectTable: setSelectedTable, onFocusTable: focusTable }),
+      h(DiagramCanvas, { selectedTable, onSelectTable: setSelectedTable, focusRequest }),
+    ),
+    dialogs,
+    h(Dialog, {
+      open: confirmNew,
+      onClose: () => setConfirmNew(false),
+      title: 'Novo modelo',
+      className: 'mm-entity-dialog',
+      actions: h('div', { className: 'mm-dialog-actions' },
+        h(Button, { variant: 'tonal', onClick: () => setConfirmNew(false) }, 'Cancelar'),
+        h(Button, { variant: 'danger', onClick: startNewModel }, 'Descartar e começar'),
+      ),
+    },
+      h('div', { className: 'mm-dialog-confirm' },
+        h('p', null, 'Começar um novo modelo em branco?'),
+        h('p', { className: 'mm-dialog-muted' },
+          `O modelo atual (${tables.length} tabela(s), ${relations.length} relação(ões)) será substituído. Ctrl+Z desfaz.`),
+      ),
     ),
   );
 }
