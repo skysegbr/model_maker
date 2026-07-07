@@ -1,5 +1,7 @@
 // data.js — dados estáticos e enumerações do Model Maker
 
+export const CANVAS_SIZE = { w: 2600, h: 1900 };
+
 export const COLUMN_TYPES = [
   'INT', 'BIGINT', 'SMALLINT', 'TINYINT',
   'DECIMAL', 'NUMERIC', 'FLOAT', 'DOUBLE',

@@ -1,0 +1,122 @@
+/* JsonImportTab.css — aba JSON */
+.mm-json-import {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.mm-json-editor {
+  position: relative;
+  flex: 1;
+  min-height: 280px;
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  background: var(--m-surface-muted);
+  overflow: hidden;
+}
+
+.mm-json-editor:focus-within {
+  border-color: var(--m-primary);
+  background: var(--m-surface);
+}
+
+.mm-json-highlight,
+.mm-json-textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow: auto;
+  box-sizing: border-box;
+  tab-size: 2;
+}
+
+.mm-json-highlight {
+  pointer-events: none;
+  color: var(--m-text);
+}
+
+.mm-json-textarea {
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--m-text);
+  z-index: 1;
+}
+
+.mm-json-textarea::selection {
+  background: color-mix(in srgb, var(--m-primary) 28%, transparent);
+}
+
+.mm-json-textarea::placeholder {
+  color: var(--m-text-muted);
+  opacity: 1;
+}
+
+.mm-json-textarea:focus {
+  outline: none;
+}
+
+.mm-sidebar--wide .mm-json-editor {
+  min-height: 360px;
+}
+
+.mm-sidebar--wide .mm-json-highlight,
+.mm-sidebar--wide .mm-json-textarea {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mm-json-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mm-json-actions .mm-cancel-btn,
+.mm-json-actions .mm-submit-btn {
+  flex: 1 1 110px;
+}
+
+.mm-json-actions .mm-submit-btn {
+  margin-left: auto;
+}
+
+/* Tokens do highlight */
+.mm-json-token-key {
+  color: var(--m-primary);
+  font-weight: 700;
+}
+
+.mm-json-token-string {
+  color: var(--m-success);
+}
+
+.mm-json-token-number {
+  color: var(--m-warning);
+}
+
+.mm-json-token-bool {
+  color: var(--m-info);
+  font-weight: 700;
+}
+
+.mm-json-token-null {
+  color: var(--m-danger);
+  font-weight: 700;
+}
+
+.mm-json-token-punct,
+.mm-json-token-mark {
+  color: var(--m-text-muted);
+}

@@ -1,6 +1,8 @@
 // ModelContext.js — contexto global + hook de estado do modelo ER
 
-import { createContext, useContext, useState, useCallback, useMemo, useHistory } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useHistory } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { CANVAS_SIZE } from '../../data.js';
+import { TABLE_W } from '../canvas/TableNode.js';
 
 export const ModelCtx = createContext(null);
 
@@ -19,6 +21,10 @@ export function useModelState() {
   // dragPos: posição efêmera durante drag — NÃO entra no histórico
   const [dragPos, setDragPos] = useState(null); // { id, x, y } | null
 
+  // canvasView: viewBox atual do canvas ({ x, y, w, h }) — escrito pelo
+  // DiagramCanvas para que tabelas novas nasçam no centro da vista atual
+  const canvasView = useRef(null);
+
   // tables com override da posição de drag (para RelationLines acompanhar em tempo real)
   const tables = useMemo(() =>
     dragPos
@@ -30,15 +36,21 @@ export function useModelState() {
 
   const addTable = useCallback((name) => {
     const id = genId();
-    setModel((p) => ({
-      ...p,
-      tables: [...p.tables, {
-        id, name,
-        x: 80 + Math.floor(Math.random() * 460),
-        y: 60 + Math.floor(Math.random() * 300),
-        columns: [],
-      }],
-    }));
+    setModel((p) => {
+      const view = canvasView.current;
+      const cx = view ? view.x + view.w / 2 : 480;
+      const cy = view ? view.y + view.h / 2 : 300;
+      const step = (p.tables.length % 6) * 32; // cascata para não empilhar
+      return {
+        ...p,
+        tables: [...p.tables, {
+          id, name,
+          x: Math.max(0, Math.min(CANVAS_SIZE.w - TABLE_W, cx - TABLE_W / 2 + step)),
+          y: Math.max(0, Math.min(CANVAS_SIZE.h - 200, cy - 90 + step)),
+          columns: [],
+        }],
+      };
+    });
     return id;
   }, [setModel]);
 
@@ -147,6 +159,7 @@ export function useModelState() {
   return useMemo(() => ({
     tables,
     relations,
+    canvasView,
     addTable,
     updateTable,
     removeTable,

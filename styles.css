@@ -2,6 +2,8 @@
 
 @import './components/shell/Shell.css';
 @import './components/sidebar/Sidebar.css';
+@import './components/sidebar/ExportTab.css';
+@import './components/sidebar/JsonImportTab.css';
 @import './components/canvas/DiagramCanvas.css';
 @import './components/canvas/TableNode.css';
 @import './components/canvas/RelationLines.css';

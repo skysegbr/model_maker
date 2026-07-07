@@ -1,0 +1,35 @@
+{
+  "biblioteca": {
+    "nome": "Biblioteca Central",
+    "cidade": "São Paulo",
+    "fundada_em": "1972-05-10",
+    "ativa": true,
+    "livros": [
+      {
+        "titulo": "Dom Casmurro",
+        "isbn": "978-85-359-0277-5",
+        "paginas": 256,
+        "preco": 39.9,
+        "publicado_em": "1899-01-01",
+        "emprestimos": [
+          { "leitor": "Ana Souza", "data_saida": "2026-06-01T10:30:00", "data_volta": null, "renovado": false },
+          { "leitor": "Bruno Lima", "data_saida": "2026-05-12T14:00:00", "data_volta": "2026-05-26T09:15:00", "renovado": true }
+        ]
+      },
+      {
+        "titulo": "Grande Sertão: Veredas",
+        "isbn": "978-85-209-2325-1",
+        "paginas": 624,
+        "preco": 59.5,
+        "publicado_em": "1956-01-01",
+        "emprestimos": [
+          { "leitor": "Carla Dias", "data_saida": "2026-06-20T16:45:00", "data_volta": null, "renovado": false }
+        ]
+      }
+    ],
+    "funcionarios": [
+      { "nome": "Marcos Paulo", "cargo": "bibliotecario", "salario": 4200.5, "admitido_em": "2019-03-11" },
+      { "nome": "Julia Reis", "cargo": "atendente", "salario": 2800, "admitido_em": "2023-08-02" }
+    ]
+  }
+}

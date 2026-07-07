@@ -1,37 +1,66 @@
-// DiagramCanvas.js — canvas SVG com tabelas e relações draggable
+// DiagramCanvas.js — canvas SVG com tabelas e relações draggable, zoom e pan
 
 import { h, useRef, useState, useCallback, useEffect, useContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { ContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
+import { CANVAS_SIZE } from '../../data.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
-import { TableNode } from './TableNode.js';
+import { TableNode, TABLE_W, tableNodeHeight } from './TableNode.js';
 import { RelationLines } from './RelationLines.js';
-import { EntityDeleteDialog, EntityEditDialog } from '../entity-dialogs/EntityDialogs.js';
+import { useEntityDialogs } from '../entity-dialogs/useEntityDialogs.js';
 
-const SVG_W = 2600;
-const SVG_H = 1900;
+const WORLD_W = CANVAS_SIZE.w;
+const WORLD_H = CANVAS_SIZE.h;
+const MIN_VIEW_W = 420;      // zoom máximo (mais perto)
+const MAX_VIEW_W = WORLD_W;  // zoom mínimo (mais longe)
+const DEFAULT_VIEW_W = 1400;
+const FIT_PAD = 80;
+
+// Prende a vista ao mundo com folga de overscroll (60% da vista) — sem a
+// folga, conteúdo encostado na borda do mundo não pode ser puxado para o
+// centro da tela e o pan parece "travado"
+function clampAxis(pos, view, world) {
+  const slack = view * 0.6;
+  const min = -slack;
+  const max = world - view + slack;
+  if (min > max) return (world - view) / 2;
+  return Math.max(min, Math.min(max, pos));
+}
+
+// A vista mantém sempre a proporção da tela — o zoom só ajusta a escala
+function clampView(vb) {
+  const ratio = vb.h / vb.w;
+  const w = Math.min(MAX_VIEW_W, Math.max(MIN_VIEW_W, vb.w));
+  const h = w * ratio;
+  return { x: clampAxis(vb.x, w, WORLD_W), y: clampAxis(vb.y, h, WORLD_H), w, h };
+}
 
 export default function DiagramCanvas({ selectedTable, onSelectTable }) {
-  const { tables, relations, moveTable, commitMove, updateTable, removeTable, updateColumn, removeColumn, removeRelation } = useModelCtx();
+  const { tables, relations, moveTable, commitMove, removeRelation, canvasView } = useModelCtx();
   const svgRef    = useRef(null);
   const tablesRef  = useRef(tables);
   tablesRef.current = tables;
-  const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: SVG_W, h: SVG_H });
-  const viewBoxRef = useRef({ x: 0, y: 0, w: SVG_W, h: SVG_H });
+  const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: DEFAULT_VIEW_W, h: DEFAULT_VIEW_W * 0.65 });
+  const viewBoxRef = useRef(viewBox);
   viewBoxRef.current = viewBox;
   const { menu, openMenu, closeMenu } = useContextMenu();
   const [contextTarget, setContextTarget] = useState(null);
-  const [editDraft, setEditDraft] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { editTable, editColumn, requestDeleteTable, requestDeleteColumn, dialogs } =
+    useEntityDialogs({ selectedTable, onSelectTable });
+
+  // ── Drag de tabelas ─────────────────────────────────────────────────────
 
   const startDrag = useCallback((tableId, e) => {
     e.preventDefault();
     const table   = tablesRef.current.find((t) => t.id === tableId);
     const svgEl   = svgRef.current;
-    const vb      = viewBoxRef.current;
     const rect    = svgEl.getBoundingClientRect();
     const groupEl = svgEl.querySelector(`[data-table-id="${tableId}"]`);
+    const maxX    = WORLD_W - TABLE_W;
+    const maxY    = WORLD_H - tableNodeHeight(table.columns);
 
+    // viewBox e tela têm a mesma proporção → mapeamento linear exato
     function toSVG(cx, cy) {
+      const vb = viewBoxRef.current;
       return {
         x: vb.x + (cx - rect.left) / rect.width  * vb.w,
         y: vb.y + (cy - rect.top)  / rect.height * vb.h,
@@ -46,8 +75,8 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
 
     function onMove(mv) {
       const pos = toSVG(mv.clientX, mv.clientY);
-      finalX = Math.max(0, pos.x - offsetX);
-      finalY = Math.max(0, pos.y - offsetY);
+      finalX = Math.min(maxX, Math.max(0, pos.x - offsetX));
+      finalY = Math.min(maxY, Math.max(0, pos.y - offsetY));
       groupEl?.setAttribute('transform', `translate(${finalX},${finalY})`);
       moveTable(tableId, finalX, finalY); // atualiza dragPos → linhas acompanham
     }
@@ -61,6 +90,8 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, [moveTable, commitMove]);
+
+  // ── Menu de contexto ────────────────────────────────────────────────────
 
   function findColumnTarget() {
     if (contextTarget?.type !== 'column') return null;
@@ -88,116 +119,78 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
     openMenu(e);
   }, [onSelectTable, openMenu]);
 
-  function closeEntityMenu() {
-    closeMenu();
-  }
-
-  function editColumnFromMenu() {
-    const target = findColumnTarget();
-    if (!target) return;
-    setEditDraft({
-      kind: 'column',
-      tableId: target.table.id,
-      columnId: target.column.id,
-      name: target.column.name,
-      type: target.column.type,
-      error: '',
-    });
-  }
-
-  function deleteColumnFromMenu() {
-    const target = findColumnTarget();
-    if (!target) return;
-    setDeleteTarget({
-      kind: 'column',
-      tableId: target.table.id,
-      columnId: target.column.id,
-      name: target.column.name,
-    });
-  }
-
-  function editTableFromMenu() {
-    const table = findTableTarget();
-    if (!table) return;
-    setEditDraft({ kind: 'table', tableId: table.id, name: table.name, error: '' });
-  }
-
-  function deleteTableFromMenu() {
-    const table = findTableTarget();
-    if (!table) return;
-    setDeleteTarget({ kind: 'table', tableId: table.id, name: table.name });
-  }
-
-  function updateEditDraft(patch) {
-    setEditDraft((draft) => draft ? { ...draft, ...patch, error: '' } : draft);
-  }
-
-  function closeEditDialog() {
-    setEditDraft(null);
-  }
-
-  function submitEditDialog() {
-    if (!editDraft) return;
-    const cleanName = editDraft.name.trim();
-    if (!cleanName) {
-      setEditDraft((draft) => ({ ...draft, error: 'Informe um nome.' }));
+  function editFromMenu() {
+    if (contextTarget?.type === 'table') {
+      const table = findTableTarget();
+      if (table) editTable(table);
       return;
     }
+    const target = findColumnTarget();
+    if (target) editColumn(target.table.id, target.column);
+  }
 
-    if (editDraft.kind === 'table') {
-      updateTable(editDraft.tableId, { name: cleanName });
-      closeEditDialog();
+  function deleteFromMenu() {
+    if (contextTarget?.type === 'table') {
+      const table = findTableTarget();
+      if (table) requestDeleteTable(table);
       return;
     }
-
-    updateColumn(editDraft.tableId, editDraft.columnId, {
-      name: cleanName,
-      type: editDraft.type,
-    });
-    closeEditDialog();
+    const target = findColumnTarget();
+    if (target) requestDeleteColumn(target.table.id, target.column);
   }
 
-  function closeDeleteDialog() {
-    setDeleteTarget(null);
-  }
-
-  function confirmDeleteDialog() {
-    if (!deleteTarget) return;
-    if (deleteTarget.kind === 'table') {
-      removeTable(deleteTarget.tableId);
-      if (selectedTable === deleteTarget.tableId) onSelectTable(null);
-    } else {
-      removeColumn(deleteTarget.tableId, deleteTarget.columnId);
-    }
-    closeDeleteDialog();
+  function contextMenuItems() {
+    const isTable = contextTarget?.type === 'table';
+    return [
+      { label: isTable ? 'Editar tabela' : 'Editar coluna', icon: '✎', onClick: editFromMenu },
+      { divider: true },
+      { label: isTable ? 'Apagar tabela' : 'Apagar coluna', icon: '×', danger: true, onClick: deleteFromMenu },
+    ];
   }
 
   // ── Zoom / Pan ──────────────────────────────────────────────────────────
 
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+  // Mantém a proporção do viewBox igual à da tela — sem isso o SVG
+  // "letterboxa" o conteúdo e todo o mapeamento mouse→mundo fica errado
+  useEffect(() => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
-    const rect = svgEl.getBoundingClientRect();
-    setViewBox((vb) => {
-      const newW = Math.min(SVG_W, Math.max(600, vb.w * factor));
-      const newH = (SVG_H / SVG_W) * newW;
-      const mx   = (e.clientX - rect.left) / rect.width;
-      const my   = (e.clientY - rect.top)  / rect.height;
-      return {
-        x: Math.max(0, Math.min(SVG_W - newW, vb.x + (vb.w - newW) * mx)),
-        y: Math.max(0, Math.min(SVG_H - newH, vb.y + (vb.h - newH) * my)),
-        w: newW, h: newH,
-      };
-    });
+    const sync = () => {
+      const rect = svgEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const ratio = rect.height / rect.width;
+      setViewBox((vb) => clampView({ ...vb, h: vb.w * ratio }));
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(svgEl);
+    return () => ro.disconnect();
   }, []);
 
   // viewBox é read-only como propriedade DOM — deve ser definido via setAttribute
-  // Roda antes do paint (índice mais alto de prioridade), garantindo sem flash
   useEffect(() => {
     svgRef.current?.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+    canvasView.current = viewBox; // tabelas novas nascem no centro da vista
   }, [viewBox]);
+
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const rect = svgEl.getBoundingClientRect();
+    const factor = Math.exp(e.deltaY * 0.0012);
+    setViewBox((vb) => {
+      const w = Math.min(MAX_VIEW_W, Math.max(MIN_VIEW_W, vb.w * factor));
+      const scale = w / vb.w;
+      const h = vb.h * scale;
+      const mx = (e.clientX - rect.left) / rect.width;
+      const my = (e.clientY - rect.top)  / rect.height;
+      // o ponto do mundo sob o cursor permanece fixo durante o zoom
+      const px = vb.x + mx * vb.w;
+      const py = vb.y + my * vb.h;
+      return clampView({ x: px - mx * w, y: py - my * h, w, h });
+    });
+  }, []);
 
   useEffect(() => {
     const svgEl = svgRef.current;
@@ -212,8 +205,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
     const isBg = cls.includes('mm-canvas-bg') || e.target === svgRef.current;
     if (!isBg) return;
     e.preventDefault();
-    const svgEl  = svgRef.current;
-    const rect   = svgEl.getBoundingClientRect();
+    const rect   = svgRef.current.getBoundingClientRect();
     const startX = e.clientX;
     const startY = e.clientY;
     const vb0    = { ...viewBoxRef.current };
@@ -221,11 +213,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
     function onMove(mv) {
       const dx = (mv.clientX - startX) / rect.width  * vb0.w;
       const dy = (mv.clientY - startY) / rect.height * vb0.h;
-      setViewBox({
-        x: Math.max(0, Math.min(SVG_W - vb0.w, vb0.x - dx)),
-        y: Math.max(0, Math.min(SVG_H - vb0.h, vb0.y - dy)),
-        w: vb0.w, h: vb0.h,
-      });
+      setViewBox(clampView({ x: vb0.x - dx, y: vb0.y - dy, w: vb0.w, h: vb0.h }));
     }
     function onUp() {
       window.removeEventListener('mousemove', onMove);
@@ -235,49 +223,41 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
     window.addEventListener('mouseup', onUp);
   }
 
-  function zoomIn() {
-    setViewBox((vb) => {
-      const newW = Math.max(600, vb.w / 1.25);
-      const newH = (SVG_H / SVG_W) * newW;
-      const cx   = vb.x + vb.w / 2;
-      const cy   = vb.y + vb.h / 2;
-      return { x: Math.max(0, cx - newW / 2), y: Math.max(0, cy - newH / 2), w: newW, h: newH };
-    });
-  }
+  const zoomBy = (factor) => setViewBox((vb) => {
+    const w = Math.min(MAX_VIEW_W, Math.max(MIN_VIEW_W, vb.w * factor));
+    const scale = w / vb.w;
+    const h = vb.h * scale;
+    return clampView({ x: vb.x + (vb.w - w) / 2, y: vb.y + (vb.h - h) / 2, w, h });
+  });
 
-  function zoomOut() {
-    setViewBox((vb) => {
-      const newW = Math.min(SVG_W, vb.w * 1.25);
-      const newH = (SVG_H / SVG_W) * newW;
-      const cx   = vb.x + vb.w / 2;
-      const cy   = vb.y + vb.h / 2;
-      return {
-        x: Math.max(0, Math.min(SVG_W - newW, cx - newW / 2)),
-        y: Math.max(0, Math.min(SVG_H - newH, cy - newH / 2)),
-        w: newW, h: newH,
-      };
-    });
-  }
+  // Enquadra todas as tabelas (ou volta à vista padrão se não há nenhuma)
+  function zoomFit() {
+    const rect  = svgRef.current?.getBoundingClientRect();
+    const ratio = rect?.width ? rect.height / rect.width : 0.65;
+    const list  = tablesRef.current;
 
-  function zoomReset() {
-    setViewBox({ x: 0, y: 0, w: SVG_W, h: SVG_H });
-  }
-
-  function contextMenuItems() {
-    if (contextTarget?.type === 'table') {
-      return [
-        { label: 'Editar tabela', icon: '✎', onClick: editTableFromMenu },
-        { divider: true },
-        { label: 'Apagar tabela', icon: '×', danger: true, onClick: deleteTableFromMenu },
-      ];
+    if (!list.length) {
+      setViewBox(clampView({ x: 0, y: 0, w: DEFAULT_VIEW_W, h: DEFAULT_VIEW_W * ratio }));
+      return;
     }
 
-    return [
-      { label: 'Editar coluna', icon: '✎', onClick: editColumnFromMenu },
-      { divider: true },
-      { label: 'Apagar coluna', icon: '×', danger: true, onClick: deleteColumnFromMenu },
-    ];
+    const minX = Math.min(...list.map((t) => t.x)) - FIT_PAD;
+    const minY = Math.min(...list.map((t) => t.y)) - FIT_PAD;
+    const maxX = Math.max(...list.map((t) => t.x + TABLE_W)) + FIT_PAD;
+    const maxY = Math.max(...list.map((t) => t.y + tableNodeHeight(t.columns))) + FIT_PAD;
+
+    let w = maxX - minX;
+    if ((maxY - minY) / w > ratio) w = (maxY - minY) / ratio;
+    w = Math.min(MAX_VIEW_W, Math.max(MIN_VIEW_W, w));
+    const h = w * ratio;
+    setViewBox(clampView({
+      x: (minX + maxX) / 2 - w / 2,
+      y: (minY + maxY) / 2 - h / 2,
+      w, h,
+    }));
   }
+
+  // ── Render ──────────────────────────────────────────────────────────────
 
   return h('div', { className: 'mm-canvas-wrap' },
     h('svg', {
@@ -297,7 +277,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
           h('circle', { className: 'mm-grid-dot', cx: 1.5, cy: 1.5, r: 1.5 }),
         ),
       ),
-      h('rect', { className: 'mm-canvas-bg', width: SVG_W, height: SVG_H, fill: 'url(#mm-grid)' }),
+      h('rect', { className: 'mm-canvas-bg', width: WORLD_W, height: WORLD_H, fill: 'url(#mm-grid)' }),
 
       // Relações (abaixo dos nós)
       h(RelationLines, { tables, relations, onRemove: removeRelation }),
@@ -314,44 +294,27 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
           onColumnContextMenu: openColumnMenu,
         })
       ),
-
-      // Mensagem de estado vazio
-      tables.length === 0 && h('g', null,
-        h('text', {
-          className: 'mm-canvas-empty',
-          x: SVG_W / 2, y: SVG_H / 2 - 12,
-          'text-anchor': 'middle',
-        }, 'Nenhuma tabela ainda.'),
-        h('text', {
-          className: 'mm-canvas-empty-sub',
-          x: SVG_W / 2, y: SVG_H / 2 + 14,
-          'text-anchor': 'middle',
-        }, 'Use o painel à esquerda para criar tabelas.'),
-      ),
     ),
+
+    // Estado vazio como overlay HTML — sempre centralizado, independe do zoom
+    tables.length === 0 && h('div', { className: 'mm-canvas-empty-overlay' },
+      h('p', { className: 'mm-canvas-empty' }, 'Nenhuma tabela ainda.'),
+      h('p', { className: 'mm-canvas-empty-sub' }, 'Use o painel à esquerda para criar tabelas.'),
+    ),
+
     h(ContextMenu, {
       open: menu.open && Boolean(contextTarget),
       x: menu.x,
       y: menu.y,
-      onClose: closeEntityMenu,
+      onClose: closeMenu,
       ariaLabel: contextTarget?.type === 'table' ? 'Ações da tabela' : 'Ações da coluna',
       items: contextMenuItems(),
     }),
-    h(EntityEditDialog, {
-      draft: editDraft,
-      onChange: updateEditDraft,
-      onCancel: closeEditDialog,
-      onSubmit: submitEditDialog,
-    }),
-    h(EntityDeleteDialog, {
-      target: deleteTarget,
-      onCancel: closeDeleteDialog,
-      onConfirm: confirmDeleteDialog,
-    }),
+    dialogs,
     h('div', { className: 'mm-zoom-controls' },
-      h('button', { className: 'mm-zoom-btn', title: 'Ampliar (+)', onClick: zoomIn }, '+'),
-      h('button', { className: 'mm-zoom-btn', title: 'Reduzir (−)', onClick: zoomOut }, '−'),
-      h('button', { className: 'mm-zoom-btn', title: 'Redefinir zoom', onClick: zoomReset }, '⊟'),
+      h('button', { className: 'mm-zoom-btn', title: 'Ampliar', onClick: () => zoomBy(1 / 1.25) }, '+'),
+      h('button', { className: 'mm-zoom-btn', title: 'Reduzir', onClick: () => zoomBy(1.25) }, '−'),
+      h('button', { className: 'mm-zoom-btn', title: 'Enquadrar tabelas', onClick: zoomFit }, '⛶'),
     ),
   );
 }

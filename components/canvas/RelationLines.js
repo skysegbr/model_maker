@@ -21,33 +21,23 @@ function pickAnchors(fromTable, toTable) {
     : { from: fa.left,  to: ta.right };
 }
 
-/** Marcadores de cardinalidade: retorna elementos SVG no ponto */
-function CardMark({ pt, side, card }) {
-  // side: 'from' | 'to'
-  // side=from → marcador do lado "1"; side=to → marcador do lado "N"
-  const dir = side === 'from' ? 1 : -1; // aponta para dentro da linha
+/** Marcador de cardinalidade em uma ponta da linha.
+ *  pt: ponto de ancoragem (na borda da tabela)
+ *  dir: +1 se a linha sai para a direita da tabela, -1 se sai para a esquerda
+ *  kind: 'one' (traço perpendicular) | 'many' (pé-de-galinha) */
+function CardMark({ pt, dir, kind }) {
   const x = pt.x;
   const y = pt.y;
 
-  if (card === '1:1') {
-    // Dois traços perpendiculares em ambos os lados
-    return h('g', { className: 'mm-card-mark-group' },
-      h('line', { className: 'mm-card-mark', x1: x + dir * 6, y1: y - 6, x2: x + dir * 6, y2: y + 6 }),
-      h('line', { className: 'mm-card-mark', x1: x + dir * 11, y1: y - 6, x2: x + dir * 11, y2: y + 6 }),
-    );
-  }
-
-  if (side === 'from') {
-    // Lado "1": traço perpendicular simples
+  if (kind === 'one') {
     return h('line', { className: 'mm-card-mark', x1: x + dir * 8, y1: y - 7, x2: x + dir * 8, y2: y + 7 });
   }
 
-  // Lado "N" (crow's foot)
+  // 'many' — pé-de-galinha: converge na linha e abre em direção à tabela
   return h('g', { className: 'mm-card-mark-group' },
-    h('line', { className: 'mm-card-mark', x1: x,           y1: y,     x2: x + dir * 12, y2: y - 7 }),
-    h('line', { className: 'mm-card-mark', x1: x,           y1: y,     x2: x + dir * 12, y2: y }),
-    h('line', { className: 'mm-card-mark', x1: x,           y1: y,     x2: x + dir * 12, y2: y + 7 }),
-    h('line', { className: 'mm-card-mark', x1: x + dir * 12, y1: y - 7, x2: x + dir * 12, y2: y + 7 }),
+    h('line', { className: 'mm-card-mark', x1: x + dir * 12, y1: y, x2: x, y2: y - 7 }),
+    h('line', { className: 'mm-card-mark', x1: x + dir * 12, y1: y, x2: x, y2: y }),
+    h('line', { className: 'mm-card-mark', x1: x + dir * 12, y1: y, x2: x, y2: y + 7 }),
   );
 }
 
@@ -65,16 +55,23 @@ export function RelationLines({ tables, relations, onRemove }) {
       const midX = (from.x + to.x) / 2;
       const midY = (from.y + to.y) / 2 - 10;
 
-      const fromSide = from.x === fromT.x ? 'to' : 'from'; // right anchor = 'from' side
-      const toSide   = to.x   === toT.x   ? 'from' : 'to';
+      // Direção geométrica: âncora esquerda → linha sai para a esquerda (-1)
+      const fromDir = from.x === fromT.x ? -1 : 1;
+      const toDir   = to.x   === toT.x   ? -1 : 1;
+
+      // Forma semântica por ponta: origem = lado "1", destino = lado "N"
+      const [fromKind, toKind] =
+        rel.cardinality === '1:1' ? ['one', 'one']
+        : rel.cardinality === 'N:M' ? ['many', 'many']
+        : ['one', 'many'];
 
       return h('g', { key: rel.id, className: 'mm-rel' },
         // Linha de relação
         h('path', { className: 'mm-rel-path', d: path }),
 
         // Marcadores de cardinalidade
-        h(CardMark, { pt: from, side: fromSide, card: rel.cardinality }),
-        h(CardMark, { pt: to,   side: toSide,   card: rel.cardinality }),
+        h(CardMark, { pt: from, dir: fromDir, kind: fromKind }),
+        h(CardMark, { pt: to,   dir: toDir,   kind: toKind }),
 
         // Label da cardinalidade
         h('rect', { className: 'mm-rel-label-bg', x: midX - 16, y: midY - 10, width: 32, height: 16, rx: 4 }),
@@ -91,8 +88,9 @@ export function RelationLines({ tables, relations, onRemove }) {
           x: midX - 16, y: midY - 10,
           width: 32, height: 16,
           onClick: () => onRemove(rel.id),
-          title: 'Clique para remover',
-        }),
+        },
+          h('title', null, 'Clique para remover a relação'),
+        ),
       );
     }),
   );

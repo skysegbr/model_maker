@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "tables": [
+    {
+      "id": "t_clientes",
+      "name": "clientes",
+      "x": 120,
+      "y": 140,
+      "columns": [
+        { "id": "c_cli_id", "name": "id", "type": "INT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_cli_nome", "name": "nome", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_cli_email", "name": "email", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_cli_nasc", "name": "data_nascimento", "type": "DATE", "pk": false, "fk": false, "nullable": true },
+        { "id": "c_cli_criado", "name": "criado_em", "type": "TIMESTAMP", "pk": false, "fk": false, "nullable": false }
+      ]
+    },
+    {
+      "id": "t_enderecos",
+      "name": "enderecos",
+      "x": 140,
+      "y": 640,
+      "columns": [
+        { "id": "c_end_id", "name": "id", "type": "INT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_end_cli", "name": "cliente_id", "type": "INT", "pk": false, "fk": true, "nullable": false },
+        { "id": "c_end_rua", "name": "logradouro", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_end_cidade", "name": "cidade", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_end_uf", "name": "uf", "type": "CHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_end_cep", "name": "cep", "type": "VARCHAR", "pk": false, "fk": false, "nullable": true }
+      ]
+    },
+    {
+      "id": "t_pedidos",
+      "name": "pedidos",
+      "x": 660,
+      "y": 140,
+      "columns": [
+        { "id": "c_ped_id", "name": "id", "type": "INT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_ped_cli", "name": "cliente_id", "type": "INT", "pk": false, "fk": true, "nullable": false },
+        { "id": "c_ped_status", "name": "status", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_ped_total", "name": "total", "type": "DECIMAL", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_ped_data", "name": "criado_em", "type": "DATETIME", "pk": false, "fk": false, "nullable": false }
+      ]
+    },
+    {
+      "id": "t_itens",
+      "name": "itens_pedido",
+      "x": 1180,
+      "y": 420,
+      "columns": [
+        { "id": "c_itm_id", "name": "id", "type": "BIGINT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_itm_ped", "name": "pedido_id", "type": "INT", "pk": false, "fk": true, "nullable": false },
+        { "id": "c_itm_prod", "name": "produto_id", "type": "INT", "pk": false, "fk": true, "nullable": false },
+        { "id": "c_itm_qtd", "name": "quantidade", "type": "SMALLINT", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_itm_preco", "name": "preco_unitario", "type": "DECIMAL", "pk": false, "fk": false, "nullable": false }
+      ]
+    },
+    {
+      "id": "t_produtos",
+      "name": "produtos",
+      "x": 1700,
+      "y": 420,
+      "columns": [
+        { "id": "c_prd_id", "name": "id", "type": "INT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_prd_cat", "name": "categoria_id", "type": "INT", "pk": false, "fk": true, "nullable": false },
+        { "id": "c_prd_nome", "name": "nome", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_prd_desc", "name": "descricao_completa_do_produto_para_testar_truncamento", "type": "TEXT", "pk": false, "fk": false, "nullable": true },
+        { "id": "c_prd_preco", "name": "preco", "type": "DECIMAL", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_prd_ativo", "name": "ativo", "type": "BOOLEAN", "pk": false, "fk": false, "nullable": false }
+      ]
+    },
+    {
+      "id": "t_categorias",
+      "name": "categorias",
+      "x": 2200,
+      "y": 140,
+      "columns": [
+        { "id": "c_cat_id", "name": "id", "type": "INT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_cat_nome", "name": "nome", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false },
+        { "id": "c_cat_pai", "name": "categoria_pai_id", "type": "INT", "pk": false, "fk": true, "nullable": true }
+      ]
+    },
+    {
+      "id": "t_tags",
+      "name": "tags",
+      "x": 2200,
+      "y": 820,
+      "columns": [
+        { "id": "c_tag_id", "name": "id", "type": "INT", "pk": true, "fk": false, "nullable": false },
+        { "id": "c_tag_nome", "name": "nome", "type": "VARCHAR", "pk": false, "fk": false, "nullable": false }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "r_cli_ped",
+      "fromTable": "t_clientes",
+      "fromColumn": "c_cli_id",
+      "toTable": "t_pedidos",
+      "toColumn": "c_ped_cli",
+      "cardinality": "1:N"
+    },
+    {
+      "id": "r_cli_end",
+      "fromTable": "t_clientes",
+      "fromColumn": "c_cli_id",
+      "toTable": "t_enderecos",
+      "toColumn": "c_end_cli",
+      "cardinality": "1:1"
+    },
+    {
+      "id": "r_ped_itm",
+      "fromTable": "t_pedidos",
+      "fromColumn": "c_ped_id",
+      "toTable": "t_itens",
+      "toColumn": "c_itm_ped",
+      "cardinality": "1:N"
+    },
+    {
+      "id": "r_prd_itm",
+      "fromTable": "t_produtos",
+      "fromColumn": "c_prd_id",
+      "toTable": "t_itens",
+      "toColumn": "c_itm_prod",
+      "cardinality": "1:N"
+    },
+    {
+      "id": "r_cat_prd",
+      "fromTable": "t_categorias",
+      "fromColumn": "c_cat_id",
+      "toTable": "t_produtos",
+      "toColumn": "c_prd_cat",
+      "cardinality": "1:N"
+    },
+    {
+      "id": "r_prd_tag",
+      "fromTable": "t_produtos",
+      "fromColumn": "c_prd_id",
+      "toTable": "t_tags",
+      "toColumn": "c_tag_id",
+      "cardinality": "N:M"
+    }
+  ]
+}

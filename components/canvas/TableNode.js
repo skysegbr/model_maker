@@ -8,9 +8,9 @@ export const ROW_H = 28;
 
 /**
  * Trunca uma string para caber dentro de `maxPx` pixels.
- * Usa factor empírico de 13.5px por caractere (sans-serif ~12.5px no SVG).
+ * Usa factor empírico de 7.5px por caractere (fontes de 12px usadas nos nós).
  */
-function svgTrunc(str, maxPx, charW = 13.5) {
+function svgTrunc(str, maxPx, charW = 7.5) {
   const max = Math.floor(maxPx / charW);
   return str.length > max ? str.slice(0, max - 1) + '…' : str;
 }
