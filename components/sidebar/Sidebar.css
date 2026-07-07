@@ -164,6 +164,16 @@
   gap: 6px;
 }
 
+.mm-form-row .mm-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.mm-input--size {
+  width: 64px;
+  flex: 0 0 64px;
+}
+
 .mm-input {
   width: 100%;
   padding: 7px 10px;

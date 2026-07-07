@@ -51,11 +51,15 @@ export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) 
   function submitColumn(e) {
     e.preventDefault();
     const name = newCol.name.trim();
+    const size = newCol.size.trim();
     if (!name || !addColFor) return;
     const table = tables.find((t) => t.id === addColFor);
-    const error = table ? validateColumnName(table, name) : '';
+    let error = table ? validateColumnName(table, name) : '';
+    if (!error && size && !/^\d+(\s*,\s*\d+)?$/.test(size)) {
+      error = 'Tamanho inválido: use "255" ou "10,2".';
+    }
     if (error) { setNewColError(error); return; }
-    addColumn(addColFor, { ...newCol, name });
+    addColumn(addColFor, { ...newCol, name, size });
     setNewCol({ ...BLANK_COLUMN });
     setNewColError('');
     setAddColFor(null);
@@ -166,7 +170,7 @@ export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) 
                           !col.nullable && !col.pk && h('span', { className: 'mm-badge-nn' }, 'NN'),
                         ),
                         h('span', { className: 'mm-col-n' }, col.name),
-                        h('span', { className: 'mm-col-t' }, col.type),
+                        h('span', { className: 'mm-col-t' }, col.type + (col.size ? `(${col.size})` : '')),
                         h('div', { className: 'mm-col-order' },
                           h('button', {
                             className: 'mm-icon-btn mm-order-btn',
@@ -206,12 +210,21 @@ export default function Sidebar({ selectedTable, onSelectTable, onFocusTable }) 
                       autoFocus: true,
                     }),
                     newColError && h('p', { className: 'mm-msg-error' }, newColError),
-                    h('select', {
-                      className: 'mm-select',
-                      value: newCol.type,
-                      onChange: (e) => setNewCol((c) => ({ ...c, type: e.target.value })),
-                    },
-                      ...COLUMN_TYPES.map((t) => h('option', { key: t, value: t }, t))
+                    h('div', { className: 'mm-form-row' },
+                      h('select', {
+                        className: 'mm-select',
+                        value: newCol.type,
+                        onChange: (e) => setNewCol((c) => ({ ...c, type: e.target.value })),
+                      },
+                        ...COLUMN_TYPES.map((t) => h('option', { key: t, value: t }, t))
+                      ),
+                      h('input', {
+                        className: 'mm-input mm-input--sm mm-input--size',
+                        placeholder: 'tam.',
+                        title: 'Tamanho/precisão: 255 ou 10,2',
+                        value: newCol.size,
+                        onInput: (e) => { setNewCol((c) => ({ ...c, size: e.target.value })); setNewColError(''); },
+                      }),
                     ),
                     h('div', { className: 'mm-checks' },
                       h('label', null,

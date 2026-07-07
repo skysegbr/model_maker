@@ -41,7 +41,7 @@ function CardMark({ pt, dir, kind }) {
   );
 }
 
-export function RelationLines({ tables, relations, onRemove }) {
+export function RelationLines({ tables, relations, onLabelClick }) {
   const tableMap = useMemo(() => Object.fromEntries(tables.map((t) => [t.id, t])), [tables]);
 
   return h('g', { className: 'mm-relations' },
@@ -82,14 +82,14 @@ export function RelationLines({ tables, relations, onRemove }) {
           style: { userSelect: 'none', pointerEvents: 'none' },
         }, rel.cardinality),
 
-        // Área clicável invisível para remover
+        // Área clicável invisível — abre o menu da relação
         h('rect', {
           className: 'mm-rel-remove-area',
           x: midX - 16, y: midY - 10,
           width: 32, height: 16,
-          onClick: () => onRemove(rel.id),
+          onClick: (e) => { e.stopPropagation(); onLabelClick(rel.id, e); },
         },
-          h('title', null, 'Clique para remover a relação'),
+          h('title', null, 'Clique para editar a relação'),
         ),
       );
     }),

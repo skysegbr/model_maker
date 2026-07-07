@@ -36,6 +36,13 @@
   stroke-width: 2.5;
 }
 
+/* Alvo válido durante o arraste de conexão */
+.mm-node--target .mm-node-border {
+  stroke: var(--m-secondary);
+  stroke-width: 3;
+  stroke-dasharray: 8 5;
+}
+
 /* Fundo alternado de linha */
 .mm-col-alt {
   fill: color-mix(in srgb, var(--m-text) 5%, transparent);

@@ -21,6 +21,13 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
       columnId: column.id,
       name: column.name,
       type: column.type,
+      size: column.size || '',
+      nullable: column.nullable !== false,
+      pk: Boolean(column.pk),
+      fk: Boolean(column.fk),
+      unique: Boolean(column.unique),
+      autoInc: Boolean(column.autoInc),
+      default: column.default || '',
       error: '',
     });
   }
@@ -50,9 +57,13 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
     }
 
     const table = tables.find((t) => t.id === editDraft.tableId);
-    const error = editDraft.kind === 'table'
+    let error = editDraft.kind === 'table'
       ? validateTableName(tables, cleanName, editDraft.tableId)
       : table ? validateColumnName(table, cleanName, editDraft.columnId) : '';
+    const cleanSize = (editDraft.size || '').trim();
+    if (!error && editDraft.kind === 'column' && cleanSize && !/^\d+(\s*,\s*\d+)?$/.test(cleanSize)) {
+      error = 'Tamanho inválido: use "255" ou "10,2".';
+    }
     if (error) {
       setEditDraft((draft) => ({ ...draft, error }));
       return;
@@ -64,6 +75,13 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
       updateColumn(editDraft.tableId, editDraft.columnId, {
         name: cleanName,
         type: editDraft.type,
+        size: cleanSize,
+        nullable: editDraft.nullable,
+        pk: editDraft.pk,
+        fk: editDraft.fk,
+        unique: editDraft.unique,
+        autoInc: editDraft.autoInc,
+        default: (editDraft.default || '').trim(),
       });
     }
     closeEditDialog();

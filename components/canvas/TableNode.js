@@ -36,7 +36,7 @@ export function tableAnchors(table) {
   };
 }
 
-export const TableNode = memo(function TableNode({ table, selected, onSelect, onDragStart, onConnectStart, onTableDblClick, onColumnDblClick, onTableContextMenu, onColumnContextMenu }) {
+export const TableNode = memo(function TableNode({ table, selected, connectTarget, onSelect, onDragStart, onConnectStart, onTableDblClick, onColumnDblClick, onTableContextMenu, onColumnContextMenu }) {
   const totalH = tableNodeHeight(table.columns);
 
   const grabProps = (id, e) => {
@@ -63,7 +63,7 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
 
   return h('g', {
     dataset: { tableId: table.id },
-    className: `mm-node${selected ? ' mm-node--sel' : ''}`,
+    className: `mm-node${selected ? ' mm-node--sel' : ''}${connectTarget ? ' mm-node--target' : ''}`,
     transform: `translate(${table.x},${table.y})`,
     onClick: (e) => { e.stopPropagation(); onSelect(table.id); },
   },
@@ -133,6 +133,13 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
     ...table.columns.flatMap((col, i) => {
       const ry = HEADER_H + i * ROW_H;
       const badge = col.pk ? 'PK' : col.fk ? 'FK' : null;
+      const typeLabel = col.type
+        + (col.size ? `(${col.size})` : '')
+        + (col.nullable === false && !col.pk ? '!' : '');
+      // reserva espaço real do tipo (fonte 11px mono ≈ 6.8px/char)
+      const typePx = Math.max(COL_TYPE_PX, typeLabel.length * 6.8);
+      const nameX  = badge ? COL_PAD_X + BADGE_W + BADGE_GAP : COL_PAD_X;
+      const nameMaxPx = TABLE_W - nameX - typePx - COL_GAP_PX;
       const rows = [];
 
       // Área da linha: permite abrir menu de contexto em qualquer ponto da coluna
@@ -170,19 +177,13 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
       rows.push(h('text', {
         key: `cn-${col.id}`,
         className: 'mm-col-name',
-        x: badge ? COL_PAD_X + BADGE_W + BADGE_GAP : COL_PAD_X,
+        x: nameX,
         y: ry + 19,
         'clip-path': `url(#${clipId})`,
         style: { userSelect: 'none', pointerEvents: 'none' },
       },
-        col.name !== svgTrunc(
-          col.name,
-          TABLE_W - (badge ? COL_PAD_X + BADGE_W + BADGE_GAP : COL_PAD_X) - COL_TYPE_PX - COL_GAP_PX
-        ) && h('title', null, col.name),
-        svgTrunc(
-          col.name,
-          TABLE_W - (badge ? COL_PAD_X + BADGE_W + BADGE_GAP : COL_PAD_X) - COL_TYPE_PX - COL_GAP_PX
-        ),
+        col.name !== svgTrunc(col.name, nameMaxPx) && h('title', null, col.name),
+        svgTrunc(col.name, nameMaxPx),
       ));
 
       // Tipo da coluna
@@ -194,7 +195,7 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
         'text-anchor': 'end',
         'clip-path': `url(#${clipId})`,
         style: { userSelect: 'none', pointerEvents: 'none' },
-      }, col.type + (col.nullable === false && !col.pk ? '!' : '')));
+      }, typeLabel));
 
       // Separador entre linhas
       if (i < table.columns.length - 1) {

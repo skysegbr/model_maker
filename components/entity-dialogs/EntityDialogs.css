@@ -34,6 +34,36 @@
   border-color: var(--m-primary);
 }
 
+.mm-dialog-row {
+  display: flex;
+  gap: 10px;
+}
+
+.mm-dialog-field--grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.mm-dialog-field--size {
+  flex: 0 0 110px;
+}
+
+.mm-dialog-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--m-text);
+}
+
+.mm-dialog-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .mm-dialog-actions {
   display: flex;
   justify-content: flex-end;

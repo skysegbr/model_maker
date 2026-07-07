@@ -94,3 +94,15 @@
 .mm-zoom-btn:hover {
   background: var(--m-border);
 }
+
+.mm-zoom-pct {
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--m-text-muted);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  padding: 4px 0;
+  user-select: none;
+}

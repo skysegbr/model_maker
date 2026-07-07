@@ -2,7 +2,7 @@
 
 import { h, useRef, useState, useCallback, useEffect, useContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { ContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
-import { CANVAS_SIZE } from '../../data.js';
+import { CANVAS_SIZE, CARDINALITIES } from '../../data.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
 import { TableNode, TABLE_W, tableNodeHeight, tableAnchors } from './TableNode.js';
 import { RelationLines, bezierPath } from './RelationLines.js';
@@ -38,7 +38,7 @@ function clampView(vb) {
 }
 
 export default function DiagramCanvas({ selectedTable, onSelectTable, focusRequest }) {
-  const { tables, relations, moveTable, commitMove, addRelation, removeRelation, canvasView } = useModelCtx();
+  const { tables, relations, moveTable, commitMove, addRelation, updateRelation, removeRelation, canvasView } = useModelCtx();
   const svgRef    = useRef(null);
   const tablesRef  = useRef(tables);
   tablesRef.current = tables;
@@ -48,7 +48,8 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
   const pointersRef = useRef(new Map()); // pointers ativos (pinça em touch)
   const { menu, openMenu, closeMenu } = useContextMenu();
   const [contextTarget, setContextTarget] = useState(null);
-  const [connecting, setConnecting] = useState(null); // { fromId, fx, fy, tx, ty } | null
+  const [relMenu, setRelMenu] = useState(null); // { relId, x, y } | null
+  const [connecting, setConnecting] = useState(null); // { fromId, fx, fy, tx, ty, targetId } | null
   const { editTable, editColumn, requestDeleteTable, requestDeleteColumn, dialogs } =
     useEntityDialogs({ selectedTable, onSelectTable });
   const dialogFnsRef = useRef(null);
@@ -117,19 +118,25 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
     }
 
     const start = toSVG(e.clientX, e.clientY);
-    setConnecting({ fromId: tableId, fx: from.x, fy: from.y, tx: start.x, ty: start.y });
+    setConnecting({ fromId: tableId, fx: from.x, fy: from.y, tx: start.x, ty: start.y, targetId: null });
+
+    function findTarget(cx, cy) {
+      const el = document.elementFromPoint(cx, cy);
+      const id = el?.closest?.('[data-table-id]')?.getAttribute('data-table-id');
+      return id && id !== tableId ? id : null;
+    }
 
     function onMove(mv) {
       const pos = toSVG(mv.clientX, mv.clientY);
-      setConnecting((c) => c && { ...c, tx: pos.x, ty: pos.y });
+      const targetId = findTarget(mv.clientX, mv.clientY); // realça o alvo
+      setConnecting((c) => c && { ...c, tx: pos.x, ty: pos.y, targetId });
     }
 
     function onUp(mv) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      const el = document.elementFromPoint(mv.clientX, mv.clientY);
-      const targetId = el?.closest?.('[data-table-id]')?.getAttribute('data-table-id');
-      if (targetId && targetId !== tableId) {
+      const targetId = findTarget(mv.clientX, mv.clientY);
+      if (targetId) {
         // origem = lado "1"; colunas ausentes são completadas pelo addRelation
         addRelation({ fromTable: tableId, fromColumn: '', toTable: targetId, toColumn: '', cardinality: '1:N' });
       }
@@ -207,6 +214,26 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       { label: isTable ? 'Editar tabela' : 'Editar coluna', icon: '✎', onClick: editFromMenu },
       { divider: true },
       { label: isTable ? 'Apagar tabela' : 'Apagar coluna', icon: '×', danger: true, onClick: deleteFromMenu },
+    ];
+  }
+
+  // ── Menu da relação (clique no rótulo de cardinalidade) ────────────────
+
+  const openRelMenu = useCallback((relId, e) => {
+    setRelMenu({ relId, x: e.clientX, y: e.clientY });
+  }, []);
+
+  function relMenuItems() {
+    const rel = relations.find((r) => r.id === relMenu?.relId);
+    if (!rel) return [];
+    return [
+      ...CARDINALITIES.map((c) => ({
+        label: c.label,
+        icon: rel.cardinality === c.value ? '✓' : '·',
+        onClick: () => updateRelation(rel.id, { cardinality: c.value }),
+      })),
+      { divider: true },
+      { label: 'Remover relação', icon: '×', danger: true, onClick: () => removeRelation(rel.id) },
     ];
   }
 
@@ -413,7 +440,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       h('rect', { className: 'mm-canvas-bg mm-canvas-grid', width: WORLD_W, height: WORLD_H, fill: 'url(#mm-grid)' }),
 
       // Relações (abaixo dos nós)
-      h(RelationLines, { tables, relations, onRemove: removeRelation }),
+      h(RelationLines, { tables, relations, onLabelClick: openRelMenu }),
 
       // Nós de tabela
       ...tables.map((table) =>
@@ -421,6 +448,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
           key: table.id,
           table,
           selected: selectedTable === table.id,
+          connectTarget: connecting?.targetId === table.id,
           onSelect: onSelectTable,
           onDragStart: startDrag,
           onConnectStart: startConnect,
@@ -452,8 +480,18 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       ariaLabel: contextTarget?.type === 'table' ? 'Ações da tabela' : 'Ações da coluna',
       items: contextMenuItems(),
     }),
+    h(ContextMenu, {
+      open: Boolean(relMenu),
+      x: relMenu?.x || 0,
+      y: relMenu?.y || 0,
+      onClose: () => setRelMenu(null),
+      ariaLabel: 'Ações da relação',
+      items: relMenuItems(),
+    }),
     dialogs,
     h('div', { className: 'mm-zoom-controls' },
+      h('span', { className: 'mm-zoom-pct', title: 'Nível de zoom' },
+        `${Math.round((DEFAULT_VIEW_W / viewBox.w) * 100)}%`),
       h('button', { className: 'mm-zoom-btn', title: 'Ampliar', onClick: () => zoomBy(1 / 1.25) }, '+'),
       h('button', { className: 'mm-zoom-btn', title: 'Reduzir', onClick: () => zoomBy(1.25) }, '−'),
       h('button', { className: 'mm-zoom-btn', title: 'Enquadrar tabelas', onClick: zoomFit }, '⛶'),

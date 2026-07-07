@@ -191,7 +191,11 @@ export function useModelState() {
           const fkName = `${fromT.name}_${fromCol.name}`;
           let fkCol = toT.columns.find((c) => c.name === fkName);
           if (!fkCol) {
-            fkCol = { id: genId(), name: fkName, type: fromCol.type, pk: false, fk: true, nullable: false };
+            fkCol = {
+              id: genId(), name: fkName,
+              type: fromCol.type, size: fromCol.size || '',
+              pk: false, fk: true, nullable: false, unique: false, autoInc: false, default: '',
+            };
             tables = tables.map((t) =>
               t.id === toT.id ? { ...t, columns: [...t.columns, fkCol] } : t
             );

@@ -12,7 +12,7 @@ function generateMermaid(tables, relations) {
     const cols = t.columns
       .map((c) => {
         const type = c.type.toLowerCase();
-        const mod  = c.pk ? ' PK' : c.fk ? ' FK' : '';
+        const mod  = c.pk ? ' PK' : c.fk ? ' FK' : c.unique ? ' UK' : '';
         return `        ${type} ${c.name}${mod}`;
       })
       .join('\n');
@@ -32,14 +32,46 @@ function generateMermaid(tables, relations) {
   return `erDiagram\n${blocks.join('\n')}${rels.length ? '\n' + rels.join('\n') : ''}`;
 }
 
-function generateSQL(tables, relations) {
+// ── Dialetos SQL ──────────────────────────────────────────────────────────────
+
+const PG_TYPE_MAP    = { DATETIME: 'TIMESTAMP', TINYINT: 'SMALLINT', DOUBLE: 'DOUBLE PRECISION', LONGTEXT: 'TEXT', JSON: 'JSONB' };
+const MYSQL_TYPE_MAP = { UUID: 'CHAR(36)' };
+
+function sqlType(col, dialect) {
+  if (dialect === 'postgres' && col.autoInc) {
+    if (col.type === 'BIGINT') return 'BIGSERIAL';
+    if (col.type === 'SMALLINT' || col.type === 'TINYINT') return 'SMALLSERIAL';
+    return 'SERIAL';
+  }
+  const map  = dialect === 'postgres' ? PG_TYPE_MAP : MYSQL_TYPE_MAP;
+  const base = map[col.type] || col.type;
+  return col.size ? `${base}(${col.size})` : base;
+}
+
+function sqlDefault(value) {
+  const raw = value.trim();
+  if (/^-?\d+(\.\d+)?$/.test(raw)) return raw;
+  if (/^(true|false|null|current_timestamp(\(\))?|now\(\))$/i.test(raw)) return raw.toUpperCase();
+  return `'${raw.replace(/'/g, "''")}'`;
+}
+
+function columnDDL(col, dialect) {
+  let line = `    ${col.name} ${sqlType(col, dialect)}`;
+  if (!col.nullable || col.pk) line += ' NOT NULL';
+  if (col.autoInc && dialect === 'mysql') line += ' AUTO_INCREMENT';
+  if (col.unique && !col.pk) line += ' UNIQUE';
+  if (col.default) line += ` DEFAULT ${sqlDefault(col.default)}`;
+  return line;
+}
+
+function generateSQL(tables, relations, dialect) {
   const tableMap = Object.fromEntries(tables.map((t) => [t.id, t]));
   const colMap   = {};
   tables.forEach((t) => t.columns.forEach((c) => { colMap[c.id] = c; }));
 
   const ddls = tables.map((t) => {
     const lines = t.columns.length
-      ? t.columns.map((c) => `    ${c.name} ${c.type}${!c.nullable || c.pk ? ' NOT NULL' : ''}`)
+      ? t.columns.map((c) => columnDDL(c, dialect))
       : ['    id INT NOT NULL'];
     const pks = t.columns.filter((c) => c.pk).map((c) => c.name);
     lines.push(`    PRIMARY KEY (${pks.length ? pks.join(', ') : 'id'})`);
@@ -71,7 +103,10 @@ function generateSQL(tables, relations) {
       const name = `${ft.name}_${tt.name}`;
       const a = `${ft.name}_${fpk.name}`;
       const b = `${tt.name}_${tpk.name}`;
-      return `CREATE TABLE ${name} (\n    ${a} ${fpk.type} NOT NULL,\n    ${b} ${tpk.type} NOT NULL,\n    PRIMARY KEY (${a}, ${b}),\n    FOREIGN KEY (${a}) REFERENCES ${ft.name}(${fpk.name}),\n    FOREIGN KEY (${b}) REFERENCES ${tt.name}(${tpk.name})\n);`;
+      // FK usa o tipo base da PK (sem SERIAL/AUTO_INCREMENT)
+      const aType = sqlType({ ...fpk, autoInc: false }, dialect);
+      const bType = sqlType({ ...tpk, autoInc: false }, dialect);
+      return `CREATE TABLE ${name} (\n    ${a} ${aType} NOT NULL,\n    ${b} ${bType} NOT NULL,\n    PRIMARY KEY (${a}, ${b}),\n    FOREIGN KEY (${a}) REFERENCES ${ft.name}(${fpk.name}),\n    FOREIGN KEY (${b}) REFERENCES ${tt.name}(${tpk.name})\n);`;
     })
     .filter(Boolean);
 
@@ -113,6 +148,7 @@ function normalizeSchema(input) {
 
 export function ExportTab({ tables, relations, onOpenSchema }) {
   const [fmt, setFmt]       = useState('mermaid');
+  const [dialect, setDialect] = useState('mysql'); // 'mysql' | 'postgres'
   const [copied, setCopied] = useState(false);
   const [error, setError]   = useState('');
   const [summary, setSummary] = useState('');
@@ -122,9 +158,9 @@ export function ExportTab({ tables, relations, onOpenSchema }) {
     fmt === 'mermaid'
       ? generateMermaid(tables, relations)
       : fmt === 'sql'
-        ? generateSQL(tables, relations)
+        ? generateSQL(tables, relations, dialect)
         : generateSchema(tables, relations),
-  [fmt, tables, relations]);
+  [fmt, dialect, tables, relations]);
 
   function copy() {
     navigator.clipboard.writeText(code).then(() => {
@@ -143,9 +179,11 @@ export function ExportTab({ tables, relations, onOpenSchema }) {
     URL.revokeObjectURL(url);
   }
 
-  function downloadSVG() {
+  // Monta um SVG autocontido: estilos embutidos + enquadrado no conteúdo.
+  // Base comum dos exports SVG e PNG.
+  function buildExportSVG() {
     const svgEl = document.querySelector('.mm-canvas-svg');
-    if (!svgEl || !tables.length) return;
+    if (!svgEl || !tables.length) return null;
     const clone = svgEl.cloneNode(true);
 
     // O arquivo baixado não carrega o CSS da aplicação — espelha os
@@ -182,12 +220,44 @@ export function ExportTab({ tables, relations, onOpenSchema }) {
     bg.setAttribute('fill', getComputedStyle(document.documentElement).getPropertyValue('--m-bg').trim() || '#ffffff');
     clone.insertBefore(bg, clone.firstChild);
 
-    const svgStr = new XMLSerializer().serializeToString(clone);
-    const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
-    const url    = URL.createObjectURL(blob);
-    const a      = Object.assign(document.createElement('a'), { href: url, download: 'diagram.svg' });
+    return { markup: new XMLSerializer().serializeToString(clone), w, h: hgt };
+  }
+
+  function downloadSVG() {
+    const built = buildExportSVG();
+    if (!built) return;
+    const blob = new Blob([built.markup], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: 'diagram.svg' });
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadPNG() {
+    const built = buildExportSVG();
+    if (!built) return;
+    const url = URL.createObjectURL(new Blob([built.markup], { type: 'image/svg+xml' }));
+    const img = new Image();
+    img.onload = () => {
+      const scale  = 2; // 2x para nitidez em telas de alta densidade
+      const canvas = document.createElement('canvas');
+      canvas.width  = built.w * scale;
+      canvas.height = built.h * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) { setError('Não foi possível gerar o PNG.'); return; }
+        const pngUrl = URL.createObjectURL(blob);
+        const a = Object.assign(document.createElement('a'), { href: pngUrl, download: 'diagram.png' });
+        a.click();
+        URL.revokeObjectURL(pngUrl);
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setError('Não foi possível gerar o PNG.');
+    };
+    img.src = url;
   }
 
   async function openSchemaFile(e) {
@@ -221,6 +291,10 @@ export function ExportTab({ tables, relations, onOpenSchema }) {
       h('button', { className: `mm-fmt-btn${fmt === 'sql' ? ' active' : ''}`, onClick: () => setFmt('sql') }, 'SQL DDL'),
       h('button', { className: `mm-fmt-btn${fmt === 'schema' ? ' active' : ''}`, onClick: () => setFmt('schema') }, 'Esquema'),
     ),
+    fmt === 'sql' && h('div', { className: 'mm-export-fmt' },
+      h('button', { className: `mm-fmt-btn${dialect === 'mysql' ? ' active' : ''}`, onClick: () => setDialect('mysql') }, 'MySQL'),
+      h('button', { className: `mm-fmt-btn${dialect === 'postgres' ? ' active' : ''}`, onClick: () => setDialect('postgres') }, 'PostgreSQL'),
+    ),
     h('div', { className: 'mm-export-actions' },
       h('button', {
         className: 'mm-cancel-btn',
@@ -228,6 +302,7 @@ export function ExportTab({ tables, relations, onOpenSchema }) {
         onClick: () => schemaInputRef.current?.click(),
       }, 'Abrir esquema'),
       h('button', { className: 'mm-cancel-btn', type: 'button', onClick: downloadSVG }, '⬇ SVG'),
+      h('button', { className: 'mm-cancel-btn', type: 'button', onClick: downloadPNG }, '⬇ PNG'),
       h('button', { className: 'mm-cancel-btn', type: 'button', onClick: download }, '⬇ Baixar'),
       h('button', { className: 'mm-copy-btn', type: 'button', onClick: copy },
         copied ? '✓ Copiado!' : '⎘ Copiar',

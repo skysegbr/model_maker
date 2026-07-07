@@ -28,18 +28,56 @@ export function EntityEditDialog({ draft, onChange, onCancel, onSubmit }) {
           autoFocus: true,
         }),
       ),
-      isColumn && h('label', { className: 'mm-dialog-field' },
-        h('span', { className: 'mm-dialog-label' }, 'Tipo'),
-        h('select', {
-          className: 'mm-dialog-input',
-          value: draft.type,
-          onChange: (e) => onChange({ type: e.target.value }),
-        },
-          ...COLUMN_TYPES.map((type) => h('option', { key: type, value: type }, type)),
+      isColumn && h('div', { className: 'mm-dialog-row' },
+        h('label', { className: 'mm-dialog-field mm-dialog-field--grow' },
+          h('span', { className: 'mm-dialog-label' }, 'Tipo'),
+          h('select', {
+            className: 'mm-dialog-input',
+            value: draft.type,
+            onChange: (e) => onChange({ type: e.target.value }),
+          },
+            ...COLUMN_TYPES.map((type) => h('option', { key: type, value: type }, type)),
+          ),
         ),
+        h('label', { className: 'mm-dialog-field mm-dialog-field--size' },
+          h('span', { className: 'mm-dialog-label' }, 'Tamanho'),
+          h('input', {
+            className: 'mm-dialog-input',
+            value: draft.size,
+            placeholder: '255 ou 10,2',
+            onInput: (e) => onChange({ size: e.target.value }),
+          }),
+        ),
+      ),
+      isColumn && h('label', { className: 'mm-dialog-field' },
+        h('span', { className: 'mm-dialog-label' }, 'Valor padrão (DEFAULT)'),
+        h('input', {
+          className: 'mm-dialog-input',
+          value: draft.default,
+          placeholder: 'ex.: 0, CURRENT_TIMESTAMP, texto...',
+          onInput: (e) => onChange({ default: e.target.value }),
+        }),
+      ),
+      isColumn && h('div', { className: 'mm-dialog-checks' },
+        DialogCheck({ draft, onChange, label: 'PK', prop: 'pk' }),
+        DialogCheck({ draft, onChange, label: 'FK', prop: 'fk' }),
+        DialogCheck({ draft, onChange, label: 'NULL', prop: 'nullable' }),
+        DialogCheck({ draft, onChange, label: 'UNIQUE', prop: 'unique' }),
+        DialogCheck({ draft, onChange, label: 'AUTO INC', prop: 'autoInc' }),
       ),
       draft.error && h('p', { className: 'mm-dialog-error' }, draft.error),
     ),
+  );
+}
+
+function DialogCheck({ draft, onChange, label, prop }) {
+  return h('label', { key: prop, className: 'mm-dialog-check' },
+    h('input', {
+      type: 'checkbox',
+      checked: Boolean(draft[prop]),
+      onChange: (e) => onChange({ [prop]: e.target.checked }),
+    }),
+    ` ${label}`,
   );
 }
 

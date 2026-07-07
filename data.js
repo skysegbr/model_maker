@@ -19,7 +19,11 @@ export const CARDINALITIES = [
 export const BLANK_COLUMN = {
   name: '',
   type: 'INT',
+  size: '',        // tamanho/precisão: "255" ou "10,2"
   pk: false,
   fk: false,
   nullable: true,
+  unique: false,
+  autoInc: false,
+  default: '',
 };
