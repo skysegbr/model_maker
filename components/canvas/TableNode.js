@@ -1,6 +1,6 @@
 // TableNode.js — nó SVG de uma tabela no diagrama
 
-import { h } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.js';
+import { h, memo } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 
 export const TABLE_W = 340;
 export const HEADER_H = 38;
@@ -36,7 +36,7 @@ export function tableAnchors(table) {
   };
 }
 
-export function TableNode({ table, selected, onSelect, onDragStart, onTableContextMenu, onColumnContextMenu }) {
+export const TableNode = memo(function TableNode({ table, selected, onSelect, onDragStart, onTableContextMenu, onColumnContextMenu }) {
   const totalH = tableNodeHeight(table.columns);
 
   const grabProps = (id, e) => {
@@ -200,4 +200,4 @@ export function TableNode({ table, selected, onSelect, onDragStart, onTableConte
       style: { pointerEvents: 'none' },
     }),
   );
-}
+});

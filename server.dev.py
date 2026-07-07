@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-server.dev.py — Servidor estático para o Model Maker
+server.dev.py — Servidor estático threaded para o Model Maker
 Uso: python3 server.dev.py [porta]
      Padrão: http://localhost:8080
 """
 import sys, os, mimetypes
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -25,4 +25,4 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == '__main__':
     mimetypes.add_type('application/javascript', '.js')
     print(f'Model Maker rodando em http://localhost:{PORT}')
-    HTTPServer(('', PORT), Handler).serve_forever()
+    ThreadingHTTPServer(('', PORT), Handler).serve_forever()

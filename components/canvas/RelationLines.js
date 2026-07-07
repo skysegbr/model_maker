@@ -1,6 +1,6 @@
 // RelationLines.js — linhas SVG de relacionamento entre tabelas
 
-import { h } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.js';
+import { h, useMemo } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { TABLE_W, tableAnchors } from './TableNode.js';
 
 /** Retorna o path de uma curva bezier cúbica entre dois pontos */
@@ -52,7 +52,7 @@ function CardMark({ pt, side, card }) {
 }
 
 export function RelationLines({ tables, relations, onRemove }) {
-  const tableMap = Object.fromEntries(tables.map((t) => [t.id, t]));
+  const tableMap = useMemo(() => Object.fromEntries(tables.map((t) => [t.id, t])), [tables]);
 
   return h('g', { className: 'mm-relations' },
     ...relations.map((rel) => {

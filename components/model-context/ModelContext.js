@@ -1,6 +1,6 @@
 // ModelContext.js — contexto global + hook de estado do modelo ER
 
-import { createContext, useContext, useState } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.js';
+import { createContext, useContext, useState, useCallback, useMemo } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 
 export const ModelCtx = createContext(null);
 
@@ -14,7 +14,7 @@ export function useModelState() {
   const [tables, setTables] = useState([]);
   const [relations, setRelations] = useState([]);
 
-  const addTable = (name) => {
+  const addTable = useCallback((name) => {
     const id = genId();
     setTables((p) => [
       ...p,
@@ -27,38 +27,38 @@ export function useModelState() {
       },
     ]);
     return id;
-  };
+  }, []);
 
-  const updateTable = (id, patch) =>
-    setTables((p) => p.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const updateTable = useCallback((id, patch) =>
+    setTables((p) => p.map((t) => (t.id === id ? { ...t, ...patch } : t))), []);
 
-  const removeTable = (id) => {
+  const removeTable = useCallback((id) => {
     setTables((p) => p.filter((t) => t.id !== id));
     setRelations((p) => p.filter((r) => r.fromTable !== id && r.toTable !== id));
-  };
+  }, []);
 
-  const moveTable = (id, x, y) =>
-    setTables((p) => p.map((t) => (t.id === id ? { ...t, x, y } : t)));
+  const moveTable = useCallback((id, x, y) =>
+    setTables((p) => p.map((t) => (t.id === id ? { ...t, x, y } : t))), []);
 
-  const addColumn = (tableId, col) =>
+  const addColumn = useCallback((tableId, col) =>
     setTables((p) =>
       p.map((t) =>
         t.id === tableId
           ? { ...t, columns: [...t.columns, { id: genId(), ...col }] }
           : t
       )
-    );
+    ), []);
 
-  const updateColumn = (tableId, colId, patch) =>
+  const updateColumn = useCallback((tableId, colId, patch) =>
     setTables((p) =>
       p.map((t) =>
         t.id === tableId
           ? { ...t, columns: t.columns.map((c) => (c.id === colId ? { ...c, ...patch } : c)) }
           : t
       )
-    );
+    ), []);
 
-  const moveColumn = (tableId, colId, direction) =>
+  const moveColumn = useCallback((tableId, colId, direction) =>
     setTables((p) =>
       p.map((t) => {
         if (t.id !== tableId) return t;
@@ -71,9 +71,9 @@ export function useModelState() {
         columns.splice(to, 0, column);
         return { ...t, columns };
       })
-    );
+    ), []);
 
-  const removeColumn = (tableId, colId) => {
+  const removeColumn = useCallback((tableId, colId) => {
     setTables((p) =>
       p.map((t) =>
         t.id === tableId
@@ -82,9 +82,9 @@ export function useModelState() {
       )
     );
     setRelations((p) => p.filter((r) => r.fromColumn !== colId && r.toColumn !== colId));
-  };
+  }, []);
 
-  const addRelation = (rel) =>
+  const addRelation = useCallback((rel) =>
     setRelations((p) => {
       const exists = p.some((r) =>
         r.fromTable === rel.fromTable &&
@@ -94,22 +94,22 @@ export function useModelState() {
         r.cardinality === rel.cardinality
       );
       return exists ? p : [...p, { id: genId(), ...rel }];
-    });
+    }), []);
 
-  const removeRelation = (id) =>
-    setRelations((p) => p.filter((r) => r.id !== id));
+  const removeRelation = useCallback((id) =>
+    setRelations((p) => p.filter((r) => r.id !== id)), []);
 
-  const importModel = ({ tables: importedTables = [], relations: importedRelations = [] }) => {
+  const importModel = useCallback(({ tables: importedTables = [], relations: importedRelations = [] }) => {
     setTables((p) => [...p, ...importedTables]);
     setRelations((p) => [...p, ...importedRelations]);
-  };
+  }, []);
 
-  const replaceModel = ({ tables: nextTables = [], relations: nextRelations = [] }) => {
+  const replaceModel = useCallback(({ tables: nextTables = [], relations: nextRelations = [] }) => {
     setTables(nextTables);
     setRelations(nextRelations);
-  };
+  }, []);
 
-  return {
+  return useMemo(() => ({
     tables,
     relations,
     addTable,
@@ -124,5 +124,5 @@ export function useModelState() {
     removeRelation,
     importModel,
     replaceModel,
-  };
+  }), [tables, relations, addTable, updateTable, removeTable, moveTable, addColumn, updateColumn, moveColumn, removeColumn, addRelation, removeRelation, importModel, replaceModel]);
 }

@@ -1,6 +1,6 @@
 // Sidebar.js — painel lateral: Tabelas | Relações | Exportar
 
-import { h, useRef, useState } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.js';
+import { h, useRef, useState, useMemo } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
 import { COLUMN_TYPES, CARDINALITIES, BLANK_COLUMN } from '../../data.js';
 import { inferModelFromJsonText } from '../importer/JsonImport.js';
@@ -104,11 +104,13 @@ function ExportTab({ tables, relations, onOpenSchema }) {
   const [summary, setSummary] = useState('');
   const schemaInputRef = useRef(null);
 
-  const code = fmt === 'mermaid'
-    ? generateMermaid(tables, relations)
-    : fmt === 'sql'
-      ? generateSQL(tables, relations)
-      : generateSchema(tables, relations);
+  const code = useMemo(() =>
+    fmt === 'mermaid'
+      ? generateMermaid(tables, relations)
+      : fmt === 'sql'
+        ? generateSQL(tables, relations)
+        : generateSchema(tables, relations),
+  [fmt, tables, relations]);
 
   function copy() {
     navigator.clipboard.writeText(code).then(() => {
@@ -210,9 +212,11 @@ function JsonHighlightedEditor({ value, onInput }) {
     highlightRef.current.scrollLeft = e.target.scrollLeft;
   }
 
+  const highlighted = useMemo(() => value ? highlightJson(value) : '\n', [value]);
+
   return h('div', { className: 'mm-json-editor' },
     h('pre', { ref: highlightRef, className: 'mm-json-highlight', ariaHidden: 'true' },
-      value ? highlightJson(value) : '\n'
+      highlighted
     ),
     h('textarea', {
       className: 'mm-json-textarea',

@@ -1,7 +1,7 @@
 // DiagramCanvas.js — canvas SVG com tabelas e relações draggable
 
-import { h, useRef, useState, useContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.js';
-import { ContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.js';
+import { h, useRef, useState, useCallback, useContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { ContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
 import { TableNode } from './TableNode.js';
 import { RelationLines } from './RelationLines.js';
@@ -13,30 +13,32 @@ const SVG_H = 1900;
 export default function DiagramCanvas({ selectedTable, onSelectTable }) {
   const { tables, relations, moveTable, updateTable, removeTable, updateColumn, removeColumn, removeRelation } = useModelCtx();
   const containerRef = useRef(null);
+  const tablesRef = useRef(tables);
+  tablesRef.current = tables;
   const { menu, openMenu, closeMenu } = useContextMenu();
   const [contextTarget, setContextTarget] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  /** Converte coordenadas do mouse (viewport) para coordenadas SVG */
-  function toSVGCoords(clientX, clientY) {
-    const el = containerRef.current;
-    const rect = el.getBoundingClientRect();
-    return {
-      x: clientX - rect.left + el.scrollLeft,
-      y: clientY - rect.top  + el.scrollTop,
-    };
-  }
-
-  function startDrag(tableId, e) {
+  const startDrag = useCallback((tableId, e) => {
     e.preventDefault();
-    const table   = tables.find((t) => t.id === tableId);
+    const table = tablesRef.current.find((t) => t.id === tableId);
+    const el    = containerRef.current;
+
+    function toSVGCoords(clientX, clientY) {
+      const rect = el.getBoundingClientRect();
+      return {
+        x: clientX - rect.left + el.scrollLeft,
+        y: clientY - rect.top  + el.scrollTop,
+      };
+    }
+
     const origin  = toSVGCoords(e.clientX, e.clientY);
     const offsetX = origin.x - table.x;
     const offsetY = origin.y - table.y;
 
-    function onMove(e) {
-      const pos = toSVGCoords(e.clientX, e.clientY);
+    function onMove(mv) {
+      const pos = toSVGCoords(mv.clientX, mv.clientY);
       moveTable(tableId, Math.max(0, pos.x - offsetX), Math.max(0, pos.y - offsetY));
     }
 
@@ -47,7 +49,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }
+  }, [moveTable]);
 
   function findColumnTarget() {
     if (contextTarget?.type !== 'column') return null;
@@ -61,19 +63,19 @@ export default function DiagramCanvas({ selectedTable, onSelectTable }) {
     return tables.find((t) => t.id === contextTarget.tableId) || null;
   }
 
-  function openTableMenu(tableId, e) {
+  const openTableMenu = useCallback((tableId, e) => {
     e.stopPropagation();
     setContextTarget({ type: 'table', tableId });
     onSelectTable(tableId);
     openMenu(e);
-  }
+  }, [onSelectTable, openMenu]);
 
-  function openColumnMenu(tableId, columnId, e) {
+  const openColumnMenu = useCallback((tableId, columnId, e) => {
     e.stopPropagation();
     setContextTarget({ type: 'column', tableId, columnId });
     onSelectTable(tableId);
     openMenu(e);
-  }
+  }, [onSelectTable, openMenu]);
 
   function closeEntityMenu() {
     closeMenu();

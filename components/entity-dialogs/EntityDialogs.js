@@ -1,7 +1,7 @@
 // EntityDialogs.js — modais Nexa para editar e apagar tabelas/colunas
 
-import { h } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.js';
-import { Button, Dialog } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.js';
+import { h } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { Button, Dialog } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
 import { COLUMN_TYPES } from '../../data.js';
 
 export function EntityEditDialog({ draft, onChange, onCancel, onSubmit }) {
