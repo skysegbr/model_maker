@@ -1,0 +1,35 @@
+/* DiagramCanvas.css */
+.mm-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  background: var(--m-bg);
+  cursor: default;
+}
+
+.mm-canvas-svg {
+  display: block;
+}
+
+/* Fundo do canvas */
+.mm-canvas-bg {
+  fill: var(--m-bg);
+}
+
+/* Grade de pontos */
+.mm-grid-dot {
+  fill: var(--m-border);
+}
+
+/* Texto de estado vazio */
+.mm-canvas-empty {
+  fill: var(--m-text-muted);
+  font-size: 20px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.mm-canvas-empty-sub {
+  fill: var(--m-text-muted);
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}

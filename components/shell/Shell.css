@@ -1,0 +1,72 @@
+/* Shell.css */
+.mm-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--m-bg);
+}
+
+.mm-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 48px;
+  background: var(--m-surface);
+  border-bottom: 1px solid var(--m-border);
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  z-index: 10;
+}
+
+.mm-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--m-primary);
+  letter-spacing: -.3px;
+}
+
+.mm-tagline {
+  font-size: 13px;
+  color: var(--m-text-muted);
+}
+
+.mm-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.mm-topbar-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mm-palette-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mm-theme-toggle {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .mm-tagline {
+    display: none;
+  }
+
+  .mm-topbar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .mm-topbar-tools {
+    gap: 6px;
+  }
+}

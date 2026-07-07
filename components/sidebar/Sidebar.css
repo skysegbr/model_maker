@@ -1,0 +1,601 @@
+/* Sidebar.css */
+.mm-sidebar {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: var(--m-surface);
+  border-right: 1px solid var(--m-border);
+  overflow: hidden;
+}
+
+/* ── Tabs ────────────────────────────────────────────────────────────── */
+.mm-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--m-border);
+  flex-shrink: 0;
+}
+
+.mm-tab {
+  flex: 1;
+  padding: 10px 4px;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--m-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+
+.mm-tab:hover {
+  color: var(--m-primary);
+}
+
+.mm-tab--on {
+  color: var(--m-primary);
+  border-bottom-color: var(--m-primary);
+  font-weight: 700;
+}
+
+/* ── Corpo da tab ────────────────────────────────────────────────────── */
+.mm-tab-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Botões de ação ──────────────────────────────────────────────────── */
+.mm-add-btn {
+  width: 100%;
+  padding: 8px;
+  border: 1.5px dashed var(--m-primary);
+  border-radius: 8px;
+  background: none;
+  color: var(--m-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.mm-add-btn:hover {
+  background: color-mix(in srgb, var(--m-primary) 8%, transparent);
+}
+
+.mm-icon-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.mm-edit-btn,
+.mm-del-btn {
+  color: var(--m-text-muted);
+}
+
+.mm-edit-btn:hover {
+  color: var(--m-primary);
+  background: color-mix(in srgb, var(--m-primary) 10%, transparent);
+}
+
+.mm-del-btn:hover {
+  color: var(--m-danger);
+  background: var(--m-danger-soft);
+}
+
+.mm-submit-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--m-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mm-submit-btn:hover {
+  opacity: .88;
+}
+
+.mm-cancel-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--m-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ── Formulários ─────────────────────────────────────────────────────── */
+.mm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--m-surface-muted);
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+}
+
+.mm-form-row {
+  display: flex;
+  gap: 6px;
+}
+
+.mm-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--m-text);
+  background: var(--m-surface);
+  box-sizing: border-box;
+}
+
+.mm-input--sm {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.mm-input:focus {
+  outline: none;
+  border-color: var(--m-primary);
+}
+
+.mm-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  background: var(--m-surface);
+  color: var(--m-text);
+}
+
+.mm-select:focus {
+  outline: none;
+  border-color: var(--m-primary);
+}
+
+.mm-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--m-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-top: 4px;
+}
+
+.mm-checks {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--m-text);
+}
+
+.mm-checks label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* ── Lista de tabelas ────────────────────────────────────────────────── */
+.mm-table-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mm-tbl-item {
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mm-tbl-item--open {
+  border-color: var(--m-primary);
+}
+
+.mm-tbl-header {
+  display: flex;
+  align-items: center;
+}
+
+.mm-tbl-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--m-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.mm-tbl-item--open .mm-tbl-name {
+  color: var(--m-primary);
+}
+
+.mm-tbl-chevron {
+  font-size: 10px;
+  color: var(--m-text-muted);
+}
+
+/* ── Painel de colunas ───────────────────────────────────────────────── */
+.mm-col-panel {
+  padding: 6px 8px 8px;
+  background: var(--m-surface-muted);
+  border-top: 1px solid var(--m-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mm-col-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mm-col-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px;
+  border-radius: 4px;
+}
+
+.mm-col-item:hover {
+  background: var(--m-surface-raised);
+}
+
+.mm-col-badges {
+  display: flex;
+  gap: 3px;
+}
+
+.mm-badge-pk {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.mm-badge-fk {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.mm-badge-nn {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #64748b;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.mm-col-n {
+  flex: 1;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--m-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm-col-t {
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--m-text-muted);
+}
+
+.mm-col-form {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+}
+
+.mm-add-col-btn {
+  padding: 5px 8px;
+  border: 1px dashed var(--m-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--m-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mm-add-col-btn:hover {
+  border-color: var(--m-primary);
+  color: var(--m-primary);
+}
+
+/* ── Lista de relações ───────────────────────────────────────────────── */
+.mm-rel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mm-rel-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+}
+
+.mm-rel-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mm-rel-card {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--m-primary);
+}
+
+.mm-rel-tables {
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  color: var(--m-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mm-rel-form {
+  gap: 5px;
+}
+
+/* ── Exportar ────────────────────────────────────────────────────────── */
+.mm-export {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.mm-export-fmt {
+  display: flex;
+  gap: 6px;
+}
+
+.mm-fmt-btn {
+  flex: 1;
+  padding: 7px;
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--m-text-muted);
+}
+
+.mm-fmt-btn.active {
+  background: var(--m-primary);
+  border-color: var(--m-primary);
+  color: #fff;
+}
+
+.mm-copy-btn {
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--m-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mm-copy-btn:hover {
+  opacity: .88;
+}
+
+.mm-code {
+  flex: 1;
+  overflow: auto;
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  background: var(--m-surface-muted);
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--m-text);
+  white-space: pre;
+  margin: 0;
+}
+
+/* ── Utilitários ─────────────────────────────────────────────────────── */
+.mm-empty {
+  font-size: 13px;
+  color: var(--m-text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.mm-empty-sm {
+  font-size: 12px;
+  color: var(--m-text-muted);
+  margin: 4px 0;
+}
+
+/* ── Importar JSON ───────────────────────────────────────────────────── */
+.mm-json-import {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.mm-json-editor {
+  position: relative;
+  flex: 1;
+  min-height: 280px;
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  background: var(--m-surface-muted);
+  overflow: hidden;
+}
+
+.mm-json-editor:focus-within {
+  border-color: var(--m-primary);
+  background: var(--m-surface);
+}
+
+.mm-json-highlight,
+.mm-json-textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow: auto;
+  box-sizing: border-box;
+  tab-size: 2;
+}
+
+.mm-json-highlight {
+  pointer-events: none;
+  color: var(--m-text);
+}
+
+.mm-json-textarea {
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--m-text);
+  z-index: 1;
+}
+
+.mm-json-textarea::selection {
+  background: color-mix(in srgb, var(--m-primary) 28%, transparent);
+}
+
+.mm-json-textarea::placeholder {
+  color: var(--m-text-muted);
+  opacity: 1;
+}
+
+.mm-json-textarea:focus {
+  outline: none;
+}
+
+.mm-json-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.mm-json-actions .mm-submit-btn {
+  margin-left: auto;
+}
+
+.mm-json-token-key {
+  color: var(--m-primary);
+  font-weight: 700;
+}
+
+.mm-json-token-string {
+  color: var(--m-success);
+}
+
+.mm-json-token-number {
+  color: var(--m-warning);
+}
+
+.mm-json-token-bool {
+  color: var(--m-info);
+  font-weight: 700;
+}
+
+.mm-json-token-null {
+  color: var(--m-danger);
+  font-weight: 700;
+}
+
+.mm-json-token-punct,
+.mm-json-token-mark {
+  color: var(--m-text-muted);
+}
+
+.mm-submit-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.mm-json-error,
+.mm-json-summary {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.mm-json-error {
+  color: var(--m-danger);
+  background: var(--m-danger-soft);
+}
+
+.mm-json-summary {
+  color: var(--m-success);
+  background: var(--m-success-soft);
+}

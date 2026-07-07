@@ -1,0 +1,106 @@
+/* TableNode.css — estilos dos nós SVG de tabela */
+
+/* Sombra */
+.mm-node-shadow {
+  fill: color-mix(in srgb, #000 22%, transparent);
+}
+
+/* Fundo do corpo da tabela */
+.mm-node-body {
+  fill: var(--m-surface);
+  stroke: none;
+}
+
+/* Cabeçalho */
+.mm-node-header {
+  fill: var(--m-primary);
+}
+
+/* Nome da tabela */
+.mm-node-title {
+  fill: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Borda exterior do nó */
+.mm-node-border {
+  fill: none;
+  stroke: var(--m-primary);
+  stroke-width: 1.5;
+}
+
+.mm-node-border--sel {
+  stroke: var(--m-secondary);
+  stroke-width: 2.5;
+}
+
+/* Fundo alternado de linha */
+.mm-col-alt {
+  fill: color-mix(in srgb, var(--m-text) 5%, transparent);
+}
+
+/* Nome da coluna */
+.mm-col-name {
+  fill: var(--m-text);
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Tipo da coluna */
+.mm-col-type {
+  fill: var(--m-text-muted);
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Separador entre linhas */
+.mm-col-sep {
+  stroke: var(--m-border);
+  stroke-width: 1;
+}
+
+/* Badge PK */
+.mm-badge-pk {
+  fill: #f59e0b;
+}
+
+/* Badge FK */
+.mm-badge-fk {
+  fill: #6366f1;
+}
+
+/* Texto dos badges */
+.mm-badge-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.mm-badge-lbl-pk {
+  fill: #ffffff;
+}
+
+.mm-badge-lbl-fk {
+  fill: #ffffff;
+}
+
+/* Área clicável das colunas para menu de contexto */
+.mm-col-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: context-menu;
+}
+
+.mm-col-hit:hover {
+  fill: color-mix(in srgb, var(--m-primary) 12%, transparent);
+}
+
+.mm-col-hit.mm-col-alt {
+  fill: color-mix(in srgb, var(--m-text) 5%, transparent);
+}
+
+.mm-col-hit.mm-col-alt:hover {
+  fill: color-mix(in srgb, var(--m-primary) 16%, transparent);
+}

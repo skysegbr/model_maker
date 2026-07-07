@@ -1,0 +1,69 @@
+/* EntityDialogs.css */
+.mm-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: min(360px, 76vw);
+}
+
+.mm-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mm-dialog-label {
+  color: var(--m-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mm-dialog-input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--m-border);
+  border-radius: 6px;
+  background: var(--m-surface);
+  color: var(--m-text);
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.mm-dialog-input:focus {
+  outline: none;
+  border-color: var(--m-primary);
+}
+
+.mm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mm-dialog-error {
+  margin: 0;
+  color: var(--m-danger);
+  font-size: 12px;
+}
+
+.mm-dialog-confirm p {
+  margin: 0;
+}
+
+.mm-dialog-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.mm-dialog-muted {
+  color: var(--m-text-muted);
+  font-size: 13px;
+}
+
+
+.mm-entity-dialog .m-dialog-header-draggable {
+  cursor: move;
+  user-select: none;
+}
