@@ -1,13 +1,16 @@
 /* DiagramCanvas.css */
 .mm-canvas-wrap {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   background: var(--m-bg);
+  position: relative;
   cursor: default;
 }
 
 .mm-canvas-svg {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* Fundo do canvas */
@@ -32,4 +35,38 @@
   fill: var(--m-text-muted);
   font-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Zoom controls */
+.mm-zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 5;
+}
+
+.mm-zoom-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--m-border);
+  background: var(--m-surface);
+  color: var(--m-text);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  transition: background .15s;
+  line-height: 1;
+  user-select: none;
+}
+
+.mm-zoom-btn:hover {
+  background: var(--m-border);
 }

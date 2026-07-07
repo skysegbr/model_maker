@@ -49,6 +49,7 @@ export const TableNode = memo(function TableNode({ table, selected, onSelect, on
   const clipId = `mm-clip-${table.id}`;
 
   return h('g', {
+    dataset: { tableId: table.id },
     className: 'mm-node',
     transform: `translate(${table.x},${table.y})`,
     onClick: (e) => { e.stopPropagation(); onSelect(table.id); },

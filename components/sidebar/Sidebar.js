@@ -116,7 +116,28 @@ function ExportTab({ tables, relations, onOpenSchema }) {
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => setError('Não foi possível copiar. Use o botão Baixar.'));
+  }
+
+  function download() {
+    const ext  = fmt === 'sql' ? 'sql' : fmt === 'mermaid' ? 'mmd' : 'json';
+    const mime = fmt === 'sql' ? 'text/plain' : fmt === 'mermaid' ? 'text/plain' : 'application/json';
+    const blob = new Blob([code], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), { href: url, download: `model.${ext}` });
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadSVG() {
+    const svgEl = document.querySelector('.mm-canvas-svg');
+    if (!svgEl) return;
+    const svgStr = new XMLSerializer().serializeToString(svgEl);
+    const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url    = URL.createObjectURL(blob);
+    const a      = Object.assign(document.createElement('a'), { href: url, download: 'diagram.svg' });
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function openSchemaFile(e) {
@@ -155,8 +176,8 @@ function ExportTab({ tables, relations, onOpenSchema }) {
         className: 'mm-cancel-btn',
         type: 'button',
         onClick: () => schemaInputRef.current?.click(),
-      }, 'Abrir esquema'),
-      h('button', { className: 'mm-copy-btn', type: 'button', onClick: copy },
+      }, 'Abrir esquema'),      h('button', { className: 'mm-cancel-btn', type: 'button', onClick: downloadSVG }, '⬇ SVG'),
+      h('button', { className: 'mm-cancel-btn', type: 'button', onClick: download }, '⬇ Baixar'),      h('button', { className: 'mm-copy-btn', type: 'button', onClick: copy },
         copied ? '✓ Copiado!' : '⎘ Copiar',
       ),
     ),
@@ -334,7 +355,7 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
     tables, relations,
     addTable, updateTable, removeTable,
     addColumn, updateColumn, moveColumn, removeColumn,
-    addRelation, removeRelation,
+    addRelation, updateRelation, removeRelation,
     importModel, replaceModel,
   } = useModelCtx();
 
@@ -350,6 +371,8 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
   });
   const [editDraft, setEditDraft]   = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editRelId, setEditRelId]    = useState(null);
+  const [editRelCard, setEditRelCard] = useState('');
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -706,19 +729,40 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
             const fc = ft?.columns.find((c) => c.id === rel.fromColumn);
             const tc = tt?.columns.find((c) => c.id === rel.toColumn);
             return h('li', { key: rel.id, className: 'mm-rel-item' },
-              h('div', { className: 'mm-rel-info' },
-                h('span', { className: 'mm-rel-card' }, rel.cardinality),
-                h('span', { className: 'mm-rel-tables' },
-                  (ft?.name || '?') + (fc ? `.${fc.name}` : ''),
-                  ' → ',
-                  (tt?.name || '?') + (tc ? `.${tc.name}` : ''),
-                ),
+              editRelId === rel.id
+                ? h('div', { className: 'mm-rel-edit' },
+                    h('select', {
+                      className: 'mm-input mm-rel-card-sel',
+                      value: editRelCard,
+                      onChange: (e) => setEditRelCard(e.target.value),
+                    }, ...CARDINALITIES.map((c) => h('option', { key: c.value, value: c.value }, c.value))),
+                    h('button', {
+                      className: 'mm-icon-btn',
+                      onClick: () => { updateRelation(rel.id, { cardinality: editRelCard }); setEditRelId(null); },
+                      title: 'Salvar',
+                    }, '✓'),
+                    h('button', { className: 'mm-icon-btn', onClick: () => setEditRelId(null), title: 'Cancelar' }, '✕'),
+                  )
+                : h('div', { className: 'mm-rel-info' },
+                    h('span', { className: 'mm-rel-card' }, rel.cardinality),
+                    h('span', { className: 'mm-rel-tables' },
+                      (ft?.name || '?') + (fc ? `.${fc.name}` : ''),
+                      ' → ',
+                      (tt?.name || '?') + (tc ? `.${tc.name}` : ''),
+                    ),
+                  ),
+              h('div', { className: 'mm-rel-actions' },
+                editRelId !== rel.id && h('button', {
+                  className: 'mm-icon-btn',
+                  onClick: () => { setEditRelId(rel.id); setEditRelCard(rel.cardinality); },
+                  title: 'Editar cardinalidade',
+                }, '✎'),
+                h('button', {
+                  className: 'mm-icon-btn mm-del-btn',
+                  onClick: () => removeRelation(rel.id),
+                  title: 'Remover',
+                }, '✕'),
               ),
-              h('button', {
-                className: 'mm-icon-btn mm-del-btn',
-                onClick: () => removeRelation(rel.id),
-                title: 'Remover',
-              }, '✕'),
             );
           }),
         ),

@@ -56,6 +56,36 @@
   flex: 0 0 auto;
 }
 
+.mm-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mm-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--m-border);
+  background: transparent;
+  color: var(--m-text);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+
+.mm-topbar-btn:hover:not(:disabled) {
+  background: var(--m-border);
+}
+
+.mm-topbar-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
   .mm-tagline {
     display: none;
