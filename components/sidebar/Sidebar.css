@@ -2,22 +2,31 @@
 .mm-sidebar {
   width: 280px;
   min-width: 280px;
+  max-width: min(620px, 58vw);
   display: flex;
   flex-direction: column;
   background: var(--m-surface);
   border-right: 1px solid var(--m-border);
   overflow: hidden;
+  transition: width .18s ease, min-width .18s ease;
+}
+
+.mm-sidebar--wide {
+  width: min(560px, 48vw);
+  min-width: min(560px, 48vw);
 }
 
 /* ── Tabs ────────────────────────────────────────────────────────────── */
 .mm-tabs {
   display: flex;
+  align-items: stretch;
   border-bottom: 1px solid var(--m-border);
   flex-shrink: 0;
 }
 
 .mm-tab {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   padding: 10px 4px;
   border: none;
   background: none;
@@ -37,6 +46,23 @@
   color: var(--m-primary);
   border-bottom-color: var(--m-primary);
   font-weight: 700;
+}
+
+.mm-sidebar-toggle {
+  flex: 0 0 34px;
+  border: none;
+  border-left: 1px solid var(--m-border);
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--m-text-muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.mm-sidebar-toggle:hover,
+.mm-sidebar-toggle--on {
+  color: var(--m-primary);
+  background: color-mix(in srgb, var(--m-primary) 8%, transparent);
 }
 
 /* ── Corpo da tab ────────────────────────────────────────────────────── */
@@ -75,6 +101,11 @@
   border-radius: 4px;
   font-size: 12px;
   line-height: 1;
+}
+
+.mm-icon-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
 }
 
 .mm-edit-btn,
@@ -278,6 +309,7 @@
 .mm-col-badges {
   display: flex;
   gap: 3px;
+  min-width: 0;
 }
 
 .mm-badge-pk {
@@ -321,6 +353,26 @@
   font-size: 11px;
   font-family: 'Consolas', 'Monaco', monospace;
   color: var(--m-text-muted);
+}
+
+.mm-col-order {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.mm-order-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: var(--m-text-muted);
+  font-size: 12px;
+}
+
+.mm-order-btn:hover:not(:disabled) {
+  color: var(--m-primary);
+  background: color-mix(in srgb, var(--m-primary) 10%, transparent);
 }
 
 .mm-col-form {
@@ -406,11 +458,12 @@
 
 .mm-export-fmt {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
 .mm-fmt-btn {
-  flex: 1;
+  flex: 1 1 80px;
   padding: 7px;
   border: 1px solid var(--m-border);
   border-radius: 6px;
@@ -425,6 +478,20 @@
   background: var(--m-primary);
   border-color: var(--m-primary);
   color: #fff;
+}
+
+.mm-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mm-export-actions .mm-copy-btn {
+  flex: 1 1 140px;
+}
+
+.mm-export-actions .mm-cancel-btn {
+  flex: 1 1 130px;
 }
 
 .mm-copy-btn {
@@ -539,13 +606,34 @@
   outline: none;
 }
 
+.mm-sidebar--wide .mm-json-editor {
+  min-height: 360px;
+}
+
+.mm-sidebar--wide .mm-json-highlight,
+.mm-sidebar--wide .mm-json-textarea,
+.mm-sidebar--wide .mm-code {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .mm-json-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.mm-json-actions .mm-cancel-btn,
+.mm-json-actions .mm-submit-btn {
+  flex: 1 1 110px;
 }
 
 .mm-json-actions .mm-submit-btn {
   margin-left: auto;
+}
+
+.mm-file-input {
+  display: none;
 }
 
 .mm-json-token-key {
@@ -576,7 +664,8 @@
   color: var(--m-text-muted);
 }
 
-.mm-submit-btn:disabled {
+.mm-submit-btn:disabled,
+.mm-cancel-btn:disabled {
   opacity: .45;
   cursor: not-allowed;
 }
@@ -598,4 +687,21 @@
 .mm-json-summary {
   color: var(--m-success);
   background: var(--m-success-soft);
+}
+
+@media (max-width: 900px) {
+  .mm-sidebar--wide {
+    width: 72vw;
+    min-width: 72vw;
+    max-width: 72vw;
+  }
+}
+
+@media (max-width: 640px) {
+  .mm-sidebar,
+  .mm-sidebar--wide {
+    width: 100vw;
+    min-width: 100vw;
+    max-width: 100vw;
+  }
 }

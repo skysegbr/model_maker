@@ -58,6 +58,21 @@ export function useModelState() {
       )
     );
 
+  const moveColumn = (tableId, colId, direction) =>
+    setTables((p) =>
+      p.map((t) => {
+        if (t.id !== tableId) return t;
+        const from = t.columns.findIndex((c) => c.id === colId);
+        const to = direction === 'up' ? from - 1 : from + 1;
+        if (from < 0 || to < 0 || to >= t.columns.length) return t;
+
+        const columns = [...t.columns];
+        const [column] = columns.splice(from, 1);
+        columns.splice(to, 0, column);
+        return { ...t, columns };
+      })
+    );
+
   const removeColumn = (tableId, colId) => {
     setTables((p) =>
       p.map((t) =>
@@ -89,6 +104,11 @@ export function useModelState() {
     setRelations((p) => [...p, ...importedRelations]);
   };
 
+  const replaceModel = ({ tables: nextTables = [], relations: nextRelations = [] }) => {
+    setTables(nextTables);
+    setRelations(nextRelations);
+  };
+
   return {
     tables,
     relations,
@@ -98,9 +118,11 @@ export function useModelState() {
     moveTable,
     addColumn,
     updateColumn,
+    moveColumn,
     removeColumn,
     addRelation,
     removeRelation,
     importModel,
+    replaceModel,
   };
 }

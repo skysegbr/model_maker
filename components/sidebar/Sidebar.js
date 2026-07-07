@@ -64,15 +64,51 @@ function generateSQL(tables, relations) {
   return [...ddls, ...fks].join('\n\n');
 }
 
+function generateSchema(tables, relations) {
+  return JSON.stringify({
+    version: 1,
+    tables,
+    relations,
+  }, null, 2);
+}
+
+function normalizeSchema(input) {
+  if (!input || !Array.isArray(input.tables) || !Array.isArray(input.relations)) {
+    throw new Error('O esquema precisa ter tables e relations.');
+  }
+
+  const tables = input.tables.map((table) => {
+    if (!table?.id || !table?.name) throw new Error('Cada tabela do esquema precisa ter id e name.');
+    return {
+      ...table,
+      columns: Array.isArray(table.columns) ? table.columns : [],
+      x: Number.isFinite(table.x) ? table.x : 80,
+      y: Number.isFinite(table.y) ? table.y : 70,
+    };
+  });
+
+  const tableIds = new Set(tables.map((table) => table.id));
+  const relations = input.relations.filter((rel) =>
+    rel?.id && tableIds.has(rel.fromTable) && tableIds.has(rel.toTable)
+  );
+
+  return { tables, relations };
+}
+
 // ─── Sub-componente: aba Exportar ─────────────────────────────────────────────
 
-function ExportTab({ tables, relations }) {
+function ExportTab({ tables, relations, onOpenSchema }) {
   const [fmt, setFmt]       = useState('mermaid');
   const [copied, setCopied] = useState(false);
+  const [error, setError]   = useState('');
+  const [summary, setSummary] = useState('');
+  const schemaInputRef = useRef(null);
 
   const code = fmt === 'mermaid'
     ? generateMermaid(tables, relations)
-    : generateSQL(tables, relations);
+    : fmt === 'sql'
+      ? generateSQL(tables, relations)
+      : generateSchema(tables, relations);
 
   function copy() {
     navigator.clipboard.writeText(code).then(() => {
@@ -81,14 +117,49 @@ function ExportTab({ tables, relations }) {
     });
   }
 
+  async function openSchemaFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setSummary('');
+
+    try {
+      const model = normalizeSchema(JSON.parse(await file.text()));
+      onOpenSchema(model);
+      setFmt('schema');
+      setSummary(`${model.tables.length} tabela(s) e ${model.relations.length} relação(ões) abertas.`);
+    } catch (err) {
+      setError(err?.message || 'Esquema inválido.');
+    } finally {
+      e.target.value = '';
+    }
+  }
+
   return h('div', { className: 'mm-export' },
+    h('input', {
+      ref: schemaInputRef,
+      className: 'mm-file-input',
+      type: 'file',
+      accept: '.json,application/json',
+      onChange: openSchemaFile,
+    }),
     h('div', { className: 'mm-export-fmt' },
       h('button', { className: `mm-fmt-btn${fmt === 'mermaid' ? ' active' : ''}`, onClick: () => setFmt('mermaid') }, 'Mermaid'),
       h('button', { className: `mm-fmt-btn${fmt === 'sql' ? ' active' : ''}`, onClick: () => setFmt('sql') }, 'SQL DDL'),
+      h('button', { className: `mm-fmt-btn${fmt === 'schema' ? ' active' : ''}`, onClick: () => setFmt('schema') }, 'Esquema'),
     ),
-    h('button', { className: 'mm-copy-btn', onClick: copy },
-      copied ? '✓ Copiado!' : '⎘ Copiar',
+    h('div', { className: 'mm-export-actions' },
+      h('button', {
+        className: 'mm-cancel-btn',
+        type: 'button',
+        onClick: () => schemaInputRef.current?.click(),
+      }, 'Abrir esquema'),
+      h('button', { className: 'mm-copy-btn', type: 'button', onClick: copy },
+        copied ? '✓ Copiado!' : '⎘ Copiar',
+      ),
     ),
+    error && h('p', { className: 'mm-json-error' }, error),
+    summary && h('p', { className: 'mm-json-summary' }, summary),
     h('pre', { className: 'mm-code' }, code || '(sem tabelas)'),
   );
 }
@@ -160,6 +231,25 @@ function JsonImportTab({ onImport, onSelectTable }) {
   const [jsonText, setJsonText] = useState('');
   const [error, setError]       = useState('');
   const [summary, setSummary]   = useState('');
+  const jsonInputRef = useRef(null);
+
+  async function openJsonFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setSummary('');
+
+    try {
+      const text = await file.text();
+      JSON.parse(text);
+      setJsonText(text);
+      setSummary(`Arquivo ${file.name} aberto.`);
+    } catch (err) {
+      setError(err?.message || 'JSON inválido.');
+    } finally {
+      e.target.value = '';
+    }
+  }
 
   function submitJson(e) {
     e.preventDefault();
@@ -193,11 +283,23 @@ function JsonImportTab({ onImport, onSelectTable }) {
   }
 
   return h('form', { className: 'mm-json-import', onSubmit: submitJson },
+    h('input', {
+      ref: jsonInputRef,
+      className: 'mm-file-input',
+      type: 'file',
+      accept: '.json,application/json',
+      onChange: openJsonFile,
+    }),
     h(JsonHighlightedEditor, {
       value: jsonText,
       onInput: (e) => setJsonText(e.target.value),
     }),
     h('div', { className: 'mm-json-actions' },
+      h('button', {
+        className: 'mm-cancel-btn',
+        type: 'button',
+        onClick: () => jsonInputRef.current?.click(),
+      }, 'Abrir JSON'),
       h('button', {
         className: 'mm-cancel-btn',
         type: 'button',
@@ -227,12 +329,13 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
   const {
     tables, relations,
     addTable, updateTable, removeTable,
-    addColumn, updateColumn, removeColumn,
+    addColumn, updateColumn, moveColumn, removeColumn,
     addRelation, removeRelation,
-    importModel,
+    importModel, replaceModel,
   } = useModelCtx();
 
   const [tab, setTab]               = useState('tables');
+  const [sidebarWide, setSidebarWide] = useState(false);
   const [addingTable, setAddingTable] = useState(false);
   const [newTName, setNewTName]     = useState('');
   const [addColFor, setAddColFor]   = useState(null);
@@ -273,6 +376,11 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
 
   function toggleTable(id) {
     onSelectTable(id === selectedTable ? null : id);
+  }
+
+  function openSchema(model) {
+    replaceModel(model);
+    onSelectTable(model.tables[0]?.id || null);
   }
 
   function editTable(t) {
@@ -344,7 +452,7 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  return h('aside', { className: 'mm-sidebar' },
+  return h('aside', { className: `mm-sidebar${sidebarWide ? ' mm-sidebar--wide' : ''}` },
 
     // ── Tabs ─────────────────────────────────────────────────────────────
     h('div', { className: 'mm-tabs' },
@@ -355,6 +463,12 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
           onClick: () => setTab(t),
         }, { tables: 'Tabelas', relations: 'Relações', json: 'JSON', export: 'Exportar' }[t])
       ),
+      h('button', {
+        className: `mm-sidebar-toggle${sidebarWide ? ' mm-sidebar-toggle--on' : ''}`,
+        type: 'button',
+        title: sidebarWide ? 'Recolher menu lateral' : 'Expandir menu lateral',
+        onClick: () => setSidebarWide((value) => !value),
+      }, sidebarWide ? '↤' : '↔'),
     ),
 
     // ════════════════════════════════════════════════════════════════════
@@ -411,7 +525,7 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
                 tbl.columns.length === 0
                   ? h('p', { className: 'mm-empty-sm' }, 'Sem colunas.')
                   : h('ul', { className: 'mm-col-list' },
-                    ...tbl.columns.map((col) =>
+                    ...tbl.columns.map((col, index) =>
                       h('li', { key: col.id, className: 'mm-col-item' },
                         h('div', { className: 'mm-col-badges' },
                           col.pk && h('span', { className: 'mm-badge-pk' }, 'PK'),
@@ -420,6 +534,20 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
                         ),
                         h('span', { className: 'mm-col-n' }, col.name),
                         h('span', { className: 'mm-col-t' }, col.type),
+                        h('div', { className: 'mm-col-order' },
+                          h('button', {
+                            className: 'mm-icon-btn mm-order-btn',
+                            disabled: index === 0,
+                            onClick: () => moveColumn(tbl.id, col.id, 'up'),
+                            title: 'Mover coluna para cima',
+                          }, '↑'),
+                          h('button', {
+                            className: 'mm-icon-btn mm-order-btn',
+                            disabled: index === tbl.columns.length - 1,
+                            onClick: () => moveColumn(tbl.id, col.id, 'down'),
+                            title: 'Mover coluna para baixo',
+                          }, '↓'),
+                        ),
                         h('button', {
                           className: 'mm-icon-btn mm-edit-btn',
                           onClick: () => editColumn(tbl.id, col),
@@ -600,7 +728,7 @@ export default function Sidebar({ selectedTable, onSelectTable }) {
     // ════════════════════════════════════════════════════════════════════
     // ABA: Exportar
     // ════════════════════════════════════════════════════════════════════
-    tab === 'export' && h(ExportTab, { tables, relations }),
+    tab === 'export' && h(ExportTab, { tables, relations, onOpenSchema: openSchema }),
     h(EntityEditDialog, {
       draft: editDraft,
       onChange: updateEditDraft,
