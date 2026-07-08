@@ -62,17 +62,17 @@ export function useModelState() {
     } catch { /* armazenamento cheio/indisponível — segue sem persistir */ }
   }, [model]);
 
-  // dragPos: posição efêmera durante drag — NÃO entra no histórico
-  const [dragPos, setDragPos] = useState(null); // { id, x, y } | null
+  // dragPos: posições efêmeras durante drag — NÃO entram no histórico
+  const [dragPos, setDragPos] = useState(null); // { [tableId]: {x,y} } | null
 
   // canvasView: viewBox atual do canvas ({ x, y, w, h }) — escrito pelo
   // DiagramCanvas para que tabelas novas nasçam no centro da vista atual
   const canvasView = useRef(null);
 
-  // tables com override da posição de drag (para RelationLines acompanhar em tempo real)
+  // tables com override das posições de drag (para RelationLines acompanhar em tempo real)
   const tables = useMemo(() =>
     dragPos
-      ? model.tables.map((t) => (t.id === dragPos.id ? { ...t, x: dragPos.x, y: dragPos.y } : t))
+      ? model.tables.map((t) => (dragPos[t.id] ? { ...t, ...dragPos[t.id] } : t))
       : model.tables,
   [model.tables, dragPos]);
 
@@ -109,14 +109,17 @@ export function useModelState() {
     })),
   [setModel]);
 
-  // moveTable: atualiza dragPos (sem histórico) — para linhas seguirem durante o drag
-  const moveTable = useCallback((id, x, y) =>
-    setDragPos({ id, x, y }), []);
+  // moveTables: atualiza dragPos (sem histórico) — para linhas seguirem
+  // durante o drag; moveTables(null) cancela o drag sem gravar nada
+  const moveTables = useCallback((posMap) => setDragPos(posMap), []);
 
-  // commitMove: limpa dragPos e grava UMA entrada no histórico (chamado no mouseUp)
-  const commitMove = useCallback((id, x, y) => {
+  // commitMoveTables: limpa dragPos e grava UMA entrada no histórico
+  const commitMoveTables = useCallback((posMap) => {
     setDragPos(null);
-    setModel((p) => ({ ...p, tables: p.tables.map((t) => (t.id === id ? { ...t, x, y } : t)) }));
+    setModel((p) => ({
+      ...p,
+      tables: p.tables.map((t) => (posMap[t.id] ? { ...t, ...posMap[t.id] } : t)),
+    }));
   }, [setModel]);
 
   const addColumn = useCallback((tableId, col) =>
@@ -287,8 +290,8 @@ export function useModelState() {
     addTable,
     updateTable,
     removeTable,
-    moveTable,
-    commitMove,
+    moveTables,
+    commitMoveTables,
     addColumn,
     updateColumn,
     moveColumn,
@@ -305,7 +308,7 @@ export function useModelState() {
     canRedo,
   }), [
     tables, relations,
-    addTable, updateTable, removeTable, moveTable, commitMove,
+    addTable, updateTable, removeTable, moveTables, commitMoveTables,
     addColumn, updateColumn, moveColumn, removeColumn,
     addRelation, updateRelation, removeRelation,
     importModel, replaceModel, autoLayout,

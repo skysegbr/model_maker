@@ -1,6 +1,6 @@
 // DiagramCanvas.js — canvas SVG com tabelas e relações draggable, zoom e pan
 
-import { h, useRef, useState, useCallback, useEffect, useContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { h, useRef, useState, useMemo, useCallback, useEffect, useContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { ContextMenu } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
 import { CANVAS_SIZE, CARDINALITIES } from '../../data.js';
 import { useModelCtx } from '../model-context/ModelContext.js';
@@ -38,8 +38,8 @@ function clampView(vb) {
   return { x: clampAxis(vb.x, w, WORLD_W), y: clampAxis(vb.y, h, WORLD_H), w, h };
 }
 
-export default function DiagramCanvas({ selectedTable, onSelectTable, focusRequest, fitRequest }) {
-  const { tables, relations, moveTable, commitMove, addRelation, updateRelation, removeRelation, canvasView } = useModelCtx();
+export default function DiagramCanvas({ selectedTable, selectedTables, onSelectTable, onToggleSelect, onSelectMany, focusRequest, fitRequest }) {
+  const { tables, relations, moveTables, commitMoveTables, addRelation, updateRelation, removeRelation, canvasView } = useModelCtx();
   const svgRef    = useRef(null);
   const tablesRef  = useRef(tables);
   tablesRef.current = tables;
@@ -48,25 +48,47 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
   viewBoxRef.current = viewBox;
   const pointersRef = useRef(new Map()); // pointers ativos (pinça em touch)
   const zoomFitRef  = useRef(null);      // zoomFit mais recente, para efeitos
+  const suppressClickRef = useRef(false); // ignora o click que segue um pan/marquee
+  const selectedSet = useMemo(() => new Set(selectedTables), [selectedTables]);
+  const selectionRef = useRef(selectedSet);
+  selectionRef.current = selectedSet;
   const { menu, openMenu, closeMenu } = useContextMenu();
   const [contextTarget, setContextTarget] = useState(null);
   const [relMenu, setRelMenu] = useState(null); // { relId, x, y } | null
+  const [marquee, setMarquee] = useState(null); // { x1, y1, x2, y2 } em coords do mundo
   const [connecting, setConnecting] = useState(null); // { fromId, fx, fy, tx, ty, targetId } | null
   const { editTable, editColumn, requestDeleteTable, requestDeleteColumn, dialogs } =
     useEntityDialogs({ selectedTable, onSelectTable });
   const dialogFnsRef = useRef(null);
   dialogFnsRef.current = { editTable, editColumn };
 
-  // ── Drag de tabelas ─────────────────────────────────────────────────────
+  // Ctrl/Shift+clique alterna a tabela na seleção; clique simples substitui
+  const handleNodeSelect = useCallback((id, e) => {
+    if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) onToggleSelect(id);
+    else onSelectTable(id);
+  }, [onToggleSelect, onSelectTable]);
+
+  // ── Drag de tabelas (individual ou grupo selecionado) ───────────────────
 
   const startDrag = useCallback((tableId, e) => {
     e.preventDefault();
-    const table   = tablesRef.current.find((t) => t.id === tableId);
-    const svgEl   = svgRef.current;
-    const rect    = svgEl.getBoundingClientRect();
-    const groupEl = svgEl.querySelector(`[data-table-id="${tableId}"]`);
-    const maxX    = WORLD_W - TABLE_W;
-    const maxY    = WORLD_H - tableNodeHeight(table.columns);
+    const svgEl = svgRef.current;
+    const rect  = svgEl.getBoundingClientRect();
+
+    // arrastar uma tabela da seleção múltipla move o grupo inteiro
+    const sel = selectionRef.current;
+    const ids = sel.has(tableId) && sel.size > 1 ? [...sel] : [tableId];
+    const moving = ids
+      .map((id) => tablesRef.current.find((t) => t.id === id))
+      .filter(Boolean);
+    if (!moving.length) return;
+
+    const starts = {}, els = {}, maxes = {};
+    moving.forEach((t) => {
+      starts[t.id] = { x: t.x, y: t.y };
+      els[t.id]    = svgEl.querySelector(`[data-table-id="${t.id}"]`);
+      maxes[t.id]  = { x: WORLD_W - TABLE_W, y: WORLD_H - tableNodeHeight(t.columns) };
+    });
 
     // viewBox e tela têm a mesma proporção → mapeamento linear exato
     function toSVG(cx, cy) {
@@ -77,30 +99,35 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       };
     }
 
-    const origin  = toSVG(e.clientX, e.clientY);
-    const offsetX = origin.x - table.x;
-    const offsetY = origin.y - table.y;
-    let finalX = table.x;
-    let finalY = table.y;
+    const origin = toSVG(e.clientX, e.clientY);
+    let final = null; // null = não houve movimento
 
     function onMove(mv) {
       if (pointersRef.current.size > 1) return; // 2 dedos = pinça, não drag
       const pos = toSVG(mv.clientX, mv.clientY);
-      finalX = Math.min(maxX, Math.max(0, snap(pos.x - offsetX)));
-      finalY = Math.min(maxY, Math.max(0, snap(pos.y - offsetY)));
-      groupEl?.setAttribute('transform', `translate(${finalX},${finalY})`);
-      moveTable(tableId, finalX, finalY); // atualiza dragPos → linhas acompanham
+      const dx = pos.x - origin.x;
+      const dy = pos.y - origin.y;
+      final = {};
+      moving.forEach((t) => {
+        final[t.id] = {
+          x: Math.min(maxes[t.id].x, Math.max(0, snap(starts[t.id].x + dx))),
+          y: Math.min(maxes[t.id].y, Math.max(0, snap(starts[t.id].y + dy))),
+        };
+        els[t.id]?.setAttribute('transform', `translate(${final[t.id].x},${final[t.id].y})`);
+      });
+      moveTables(final); // atualiza dragPos → linhas acompanham
     }
 
     function onUp() {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      commitMove(tableId, finalX, finalY); // grava UMA entrada no histórico
+      if (final) commitMoveTables(final); // UMA entrada no histórico
+      else moveTables(null);              // clique sem movimento: nada a gravar
     }
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [moveTable, commitMove]);
+  }, [moveTables, commitMoveTables]);
 
   // ── Criar relação por arraste (porta → outra tabela) ───────────────────
 
@@ -296,6 +323,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
     const isBg = cls.includes('mm-canvas-bg') || e.target === svgRef.current;
     if (!isBg) return;
     e.preventDefault();
+    if (e.shiftKey) { startMarquee(e); return; } // Shift+arraste = seleção em retângulo
     const rect   = svgRef.current.getBoundingClientRect();
     const startX = e.clientX;
     const startY = e.clientY;
@@ -303,6 +331,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
 
     function onMove(mv) {
       if (pointersRef.current.size > 1) return; // 2 dedos = pinça, não pan
+      suppressClickRef.current = true; // o click que segue um pan não deve desmarcar
       const dx = (mv.clientX - startX) / rect.width  * vb0.w;
       const dy = (mv.clientY - startY) / rect.height * vb0.h;
       setViewBox(clampView({ x: vb0.x - dx, y: vb0.y - dy, w: vb0.w, h: vb0.h }));
@@ -313,6 +342,54 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+  }
+
+  // ── Marquee: Shift+arraste no fundo seleciona as tabelas no retângulo ───
+
+  function startMarquee(e) {
+    const rect = svgRef.current.getBoundingClientRect();
+
+    function toSVG(cx, cy) {
+      const vb = viewBoxRef.current;
+      return {
+        x: vb.x + (cx - rect.left) / rect.width  * vb.w,
+        y: vb.y + (cy - rect.top)  / rect.height * vb.h,
+      };
+    }
+
+    const start = toSVG(e.clientX, e.clientY);
+    setMarquee({ x1: start.x, y1: start.y, x2: start.x, y2: start.y });
+
+    function onMove(mv) {
+      suppressClickRef.current = true;
+      const pos = toSVG(mv.clientX, mv.clientY);
+      setMarquee((m) => m && { ...m, x2: pos.x, y2: pos.y });
+    }
+
+    function onUp(mv) {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const pos = toSVG(mv.clientX, mv.clientY);
+      const minX = Math.min(start.x, pos.x);
+      const maxX = Math.max(start.x, pos.x);
+      const minY = Math.min(start.y, pos.y);
+      const maxY = Math.max(start.y, pos.y);
+      const ids = tablesRef.current
+        .filter((t) =>
+          t.x < maxX && t.x + TABLE_W > minX &&
+          t.y < maxY && t.y + tableNodeHeight(t.columns) > minY)
+        .map((t) => t.id);
+      onSelectMany(ids);
+      setMarquee(null);
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  function handleCanvasClick() {
+    if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+    onSelectTable(null);
   }
 
   // Pinça (touch): dois dedos ajustam zoom + pan em torno do ponto médio
@@ -437,7 +514,7 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       ref: svgRef,
       className: 'mm-canvas-svg',
       onPointerDown: startPan,
-      onClick: () => onSelectTable(null),
+      onClick: handleCanvasClick,
     },
       // Grade de pontos
       h('defs', null,
@@ -463,9 +540,9 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
         h(TableNode, {
           key: table.id,
           table,
-          selected: selectedTable === table.id,
+          selected: selectedSet.has(table.id),
           connectTarget: connecting?.targetId === table.id,
-          onSelect: onSelectTable,
+          onSelect: handleNodeSelect,
           onDragStart: startDrag,
           onConnectStart: startConnect,
           onTableDblClick: openTableEdit,
@@ -479,6 +556,15 @@ export default function DiagramCanvas({ selectedTable, onSelectTable, focusReque
       connecting && h('path', {
         className: 'mm-connect-line',
         d: bezierPath({ x: connecting.fx, y: connecting.fy }, { x: connecting.tx, y: connecting.ty }),
+      }),
+
+      // Retângulo de seleção (Shift+arraste)
+      marquee && h('rect', {
+        className: 'mm-marquee',
+        x: Math.min(marquee.x1, marquee.x2),
+        y: Math.min(marquee.y1, marquee.y2),
+        width: Math.abs(marquee.x2 - marquee.x1),
+        height: Math.abs(marquee.y2 - marquee.y1),
       }),
     ),
 

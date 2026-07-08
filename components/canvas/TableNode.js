@@ -65,7 +65,7 @@ export const TableNode = memo(function TableNode({ table, selected, connectTarge
     dataset: { tableId: table.id },
     className: `mm-node${selected ? ' mm-node--sel' : ''}${connectTarget ? ' mm-node--target' : ''}`,
     transform: `translate(${table.x},${table.y})`,
-    onClick: (e) => { e.stopPropagation(); onSelect(table.id); },
+    onClick: (e) => { e.stopPropagation(); onSelect(table.id, e); },
   },
     // ClipPath: limita todo conteúdo aos bounds do card
     h('defs', null,

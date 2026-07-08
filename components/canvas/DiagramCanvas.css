@@ -26,6 +26,15 @@
   fill: var(--m-border);
 }
 
+/* Retângulo de seleção múltipla (Shift+arraste) */
+.mm-marquee {
+  fill: color-mix(in srgb, var(--m-secondary) 10%, transparent);
+  stroke: var(--m-secondary);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
 /* Linha temporária de criação de relação */
 .mm-connect-line {
   fill: none;

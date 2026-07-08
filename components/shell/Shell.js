@@ -1,6 +1,6 @@
 // Shell.js — layout principal: topbar + sidebar + canvas
 
-import { h, useState, useEffect, useRef } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
+import { h, useState, useEffect, useRef, useCallback } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa.min.js';
 import { Button, Dialog, PaletteSwitcher, ThemeToggle } from 'https://cdn.jsdelivr.net/gh/skysegbr/Nexa@main/dist/nexa-components.min.js';
 import Sidebar from '../sidebar/Sidebar.js';
 import DiagramCanvas from '../canvas/DiagramCanvas.js';
@@ -8,17 +8,27 @@ import { useModelCtx } from '../model-context/ModelContext.js';
 import { useEntityDialogs } from '../entity-dialogs/useEntityDialogs.js';
 
 export default function Shell() {
-  const [selectedTable, setSelectedTable] = useState(null);
+  const [selectedTables, setSelectedTables] = useState([]); // seleção múltipla, ordem de clique
   const [confirmNew, setConfirmNew] = useState(false);
   const [focusRequest, setFocusRequest] = useState(null); // { id, n } — centralizar no canvas
   const [fitRequest, setFitRequest] = useState(null);     // { n } — enquadrar tudo no canvas
   const { tables, relations, replaceModel, autoLayout, undo, redo, canUndo, canRedo } = useModelCtx();
-  const { requestDeleteTable, dialogs } = useEntityDialogs({ selectedTable, onSelectTable: setSelectedTable });
+
+  const selectedTable = selectedTables.length ? selectedTables[selectedTables.length - 1] : null;
+
+  // Handlers estáveis (useCallback) para não quebrar o memo dos nós do canvas
+  const selectTable = useCallback((id) => setSelectedTables(id ? [id] : []), []);
+  const toggleSelect = useCallback((id) =>
+    setSelectedTables((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]), []);
+  const selectMany = useCallback((ids) => setSelectedTables(ids), []);
+
+  const { requestDeleteTable, requestDeleteTables, dialogs } =
+    useEntityDialogs({ selectedTable, onSelectTable: selectTable });
   const isEmpty = tables.length === 0 && relations.length === 0;
 
   // Refs para o handler de teclado ler o estado mais recente sem re-assinar
   const keyStateRef = useRef(null);
-  keyStateRef.current = { selectedTable, tables, requestDeleteTable };
+  keyStateRef.current = { selectedTables, tables, requestDeleteTable, requestDeleteTables };
 
   useEffect(() => {
     function handleKey(e) {
@@ -35,11 +45,14 @@ export default function Shell() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (active?.closest?.('.m-dialog, [role="dialog"]')) return;
 
-      const { selectedTable: sel, tables: tbls, requestDeleteTable: reqDel } = keyStateRef.current;
-      if (e.key === 'Escape') { setSelectedTable(null); return; }
-      if (e.key === 'Delete' && sel) {
-        const table = tbls.find((t) => t.id === sel);
-        if (table) { e.preventDefault(); reqDel(table); }
+      const st = keyStateRef.current;
+      if (e.key === 'Escape') { setSelectedTables([]); return; }
+      if (e.key === 'Delete' && st.selectedTables.length) {
+        const sel = st.tables.filter((t) => st.selectedTables.includes(t.id));
+        if (!sel.length) return;
+        e.preventDefault();
+        if (sel.length > 1) st.requestDeleteTables(sel);
+        else st.requestDeleteTable(sel[0]);
       }
     }
     document.addEventListener('keydown', handleKey);
@@ -57,7 +70,7 @@ export default function Shell() {
 
   function startNewModel() {
     replaceModel({ tables: [], relations: [] });
-    setSelectedTable(null);
+    setSelectedTables([]);
     setConfirmNew(false);
   }
 
@@ -87,8 +100,16 @@ export default function Shell() {
       ),
     ),
     h('div', { className: 'mm-body' },
-      h(Sidebar, { selectedTable, onSelectTable: setSelectedTable, onFocusTable: focusTable }),
-      h(DiagramCanvas, { selectedTable, onSelectTable: setSelectedTable, focusRequest, fitRequest }),
+      h(Sidebar, { selectedTable, onSelectTable: selectTable, onFocusTable: focusTable }),
+      h(DiagramCanvas, {
+        selectedTable,
+        selectedTables,
+        onSelectTable: selectTable,
+        onToggleSelect: toggleSelect,
+        onSelectMany: selectMany,
+        focusRequest,
+        fitRequest,
+      }),
     ),
     dialogs,
     h(Dialog, {

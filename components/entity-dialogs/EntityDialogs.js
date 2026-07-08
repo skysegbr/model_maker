@@ -83,11 +83,12 @@ function DialogCheck({ draft, onChange, label, prop }) {
 
 export function EntityDeleteDialog({ target, onCancel, onConfirm }) {
   const isColumn = target?.kind === 'column';
+  const isMulti  = target?.kind === 'tables';
 
   return h(Dialog, {
     open: Boolean(target),
     onClose: onCancel,
-    title: isColumn ? 'Apagar coluna' : 'Apagar tabela',
+    title: isMulti ? 'Apagar tabelas' : isColumn ? 'Apagar coluna' : 'Apagar tabela',
     draggable: true,
     className: 'mm-entity-dialog',
     actions: h('div', { className: 'mm-dialog-actions' },
@@ -96,11 +97,17 @@ export function EntityDeleteDialog({ target, onCancel, onConfirm }) {
     ),
   },
     target && h('div', { className: 'mm-dialog-confirm' },
-      h('p', null, `Apagar ${isColumn ? 'a coluna' : 'a tabela'} "${target.name}"?`),
+      h('p', null,
+        isMulti
+          ? `Apagar as ${target.name} selecionadas?`
+          : `Apagar ${isColumn ? 'a coluna' : 'a tabela'} "${target.name}"?`
+      ),
       h('p', { className: 'mm-dialog-muted' },
         isColumn
           ? 'Relações ligadas a esta coluna também serão removidas.'
-          : 'Relações ligadas a esta tabela também serão removidas.'
+          : isMulti
+            ? 'Relações ligadas a estas tabelas também serão removidas.'
+            : 'Relações ligadas a esta tabela também serão removidas.'
       ),
     ),
   );

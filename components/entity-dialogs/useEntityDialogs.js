@@ -36,6 +36,16 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
     setDeleteTarget({ kind: 'table', tableId: table.id, name: table.name });
   }
 
+  function requestDeleteTables(tableList) {
+    if (!tableList.length) return;
+    if (tableList.length === 1) { requestDeleteTable(tableList[0]); return; }
+    setDeleteTarget({
+      kind: 'tables',
+      ids: tableList.map((t) => t.id),
+      name: `${tableList.length} tabelas`,
+    });
+  }
+
   function requestDeleteColumn(tableId, column) {
     setDeleteTarget({ kind: 'column', tableId, columnId: column.id, name: column.name });
   }
@@ -93,7 +103,10 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
 
   function confirmDeleteDialog() {
     if (!deleteTarget) return;
-    if (deleteTarget.kind === 'table') {
+    if (deleteTarget.kind === 'tables') {
+      deleteTarget.ids.forEach(removeTable);
+      onSelectTable(null);
+    } else if (deleteTarget.kind === 'table') {
       removeTable(deleteTarget.tableId);
       if (selectedTable === deleteTarget.tableId) onSelectTable(null);
     } else {
@@ -116,5 +129,5 @@ export function useEntityDialogs({ selectedTable, onSelectTable }) {
     }),
   );
 
-  return { editTable, editColumn, requestDeleteTable, requestDeleteColumn, dialogs };
+  return { editTable, editColumn, requestDeleteTable, requestDeleteTables, requestDeleteColumn, dialogs };
 }
